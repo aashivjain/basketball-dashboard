@@ -12,35 +12,20 @@ cd basketball-dashboard
 npm install
 ```
 
-### 2. Set Up Python (for data fetching)
+### 2. Fetch Data
+
+Requires Python 3.10+:
 
 ```bash
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # macOS/Linux
 
 pip install nba_api requests
+python scripts/fetch_all.py   # ~20 min, pulls from stats.wnba.com
 ```
 
-### 3. Fetch Data
-
-Run the master fetch script (takes ~20 min — pulls from stats.wnba.com):
-
-```bash
-python scripts/fetch_all.py
-```
-
-Or run steps individually:
-
-```bash
-python scripts/fetch_data.py           # Fever roster, stats, game logs
-python scripts/fetch_league_players.py # All WNBA players per-game stats
-python scripts/fetch_all_shots.py      # Shot charts for every player
-```
-
-### 4. Run the App
+### 3. Run
 
 ```bash
 npm run dev
