@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
 import type { GameLog } from '../types'
 
 interface Props {
@@ -21,6 +21,7 @@ export default function PerformanceTrend({ games, teamColor }: Props) {
       <h3 className="text-sm font-medium text-slate-600 mb-3">Performance Trend</h3>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={chartData} margin={{ left: 0, right: 10, top: 5, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="idx" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
           <Tooltip

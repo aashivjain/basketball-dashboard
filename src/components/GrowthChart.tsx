@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts'
 import type { PlayerStats } from '../types'
 
 interface Props {
@@ -14,6 +14,7 @@ export default function GrowthChart({ data, playerName, teamColor }: Props) {
       <p className="text-xs text-slate-400 mb-3">{playerName}'s growth trajectory</p>
       <ResponsiveContainer width="100%" height={180}>
         <LineChart data={data} margin={{ left: 0, right: 10, top: 5, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="season" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
           <Tooltip

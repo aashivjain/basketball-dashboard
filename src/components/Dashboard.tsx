@@ -62,6 +62,22 @@ export default function Dashboard() {
 
   const teamColor = player ? getTeamColors(player.team) : null
 
+  // Compute position averages by classifying players into Guard/Wing/Big
+  const positionAvg = useMemo(() => {
+    if (!player || allPlayers.length === 0) return null
+    const classify = (p: LeaguePlayer) => {
+      if (p.ast >= p.reb * 0.7 && p.reb < 6) return 'Guard'
+      if (p.reb >= p.ast * 2.5 || p.reb >= 7) return 'Big'
+      return 'Wing'
+    }
+    const pos = classify(player)
+    const group = allPlayers.filter(p => classify(p) === pos && p.gp >= 5)
+    if (group.length === 0) return null
+    const avg = (key: 'pts' | 'reb' | 'ast' | 'stl' | 'blk') =>
+      group.reduce((s, p) => s + p[key], 0) / group.length
+    return { pts: avg('pts'), reb: avg('reb'), ast: avg('ast'), stl: avg('stl'), blk: avg('blk'), label: pos }
+  }, [player, allPlayers])
+
   return (
     <div className="min-h-screen transition-colors duration-500" style={{ background: teamColor ? teamColor.bg : '#fafafa' }}>
       {/* fluid header - no hard border, just a gentle fade */}
@@ -148,7 +164,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <PlayerCard player={player} stats={stats} teamColor={teamColor!} />
               <div className="lg:col-span-2">
-                <StatsRadar player={player} leagueAvg={leagueAvg} teamColor={teamColor!} compareStats={comparePlayer} compareName={comparePlayer?.name} />
+                <StatsRadar player={player} leagueAvg={leagueAvg} positionAvg={positionAvg} teamColor={teamColor!} compareStats={comparePlayer} compareName={comparePlayer?.name} />
               </div>
             </div>
 
