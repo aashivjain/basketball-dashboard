@@ -1,40 +1,52 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts'
 import type { Shot } from '../types'
-import { shotZoneAgg } from '../utils/stats'
 
 interface Props {
   shots: Shot[]
+  teamColor: { primary: string }
 }
 
-export default function ShotZoneBreakdown({ shots }: Props) {
-  const zones = shotZoneAgg(shots).sort((a, b) => b.total - a.total)
-
-  const color = (p: number) => {
-    if (p >= 0.5) return '#4ade80'
-    if (p >= 0.4) return '#a3e635'
-    if (p >= 0.33) return '#facc15'
-    if (p >= 0.25) return '#fb923c'
-    return '#f87171'
+export default function ShotZoneBreakdown({ shots, teamColor }: Props) {
+  const zones: Record<string, { made: number; total: number }> = {}
+  for (const s of shots) {
+    const zone = s.shot_zone || 'Unknown'
+    if (!zones[zone]) zones[zone] = { made: 0, total: 0 }
+    zones[zone].total++
+    if (s.made) zones[zone].made++
   }
 
-  return (
-    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5 h-full">
-      <h3 className="text-sm font-medium text-zinc-200 mb-1">Shooting by Zone</h3>
-      <p className="text-[11px] text-zinc-500 mb-3">FG% by court area</p>
+  const data = Object.entries(zones)
+    .map(([zone, { made, total }]) => ({
+      zone: zone.replace(/\s*\(.*\)/, ''),
+      pct: total > 0 ? (made / total) * 100 : 0,
+      made,
+      total,
+    }))
+    .sort((a, b) => b.pct - a.pct)
 
+  return (
+    <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
+      <h3 className="text-sm font-medium text-slate-600 mb-3">Shot Zone Efficiency</h3>
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={zones} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-          <XAxis type="number" domain={[0, 1]} tick={{ fill: '#71717a', fontSize: 10 }} tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} axisLine={false} />
-          <YAxis type="category" dataKey="zone" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={100} axisLine={false} tickLine={false} />
+        <BarChart data={data} layout="vertical" margin={{ left: 0, right: 20 }}>
+          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="zone" tick={{ fontSize: 10, fill: '#64748b' }} width={100} axisLine={false} tickLine={false} />
           <Tooltip
-            contentStyle={{ background: '#1c1c1c', border: '1px solid #333', borderRadius: '6px', fontSize: '11px' }}
-            formatter={(value, _name, props) => {
-              const p = (props as unknown as { payload: { made: number; total: number } }).payload
-              return [`${(Number(value) * 100).toFixed(1)}% (${p.made}/${p.total})`, 'FG%']
+            content={({ payload }) => {
+              if (!payload?.length) return null
+              const d = payload[0]?.payload
+              return (
+                <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-2 text-xs">
+                  <div className="font-medium text-slate-700">{d.zone}</div>
+                  <div className="text-slate-500">{d.made}/{d.total} ({d.pct.toFixed(1)}%)</div>
+                </div>
+              )
             }}
           />
-          <Bar dataKey="pct" radius={[0, 3, 3, 0]}>
-            {zones.map((z, i) => <Cell key={i} fill={color(z.pct)} />)}
+          <Bar dataKey="pct" radius={[0, 4, 4, 0]}>
+            {data.map((_, i) => (
+              <Cell key={i} fill={teamColor.primary} opacity={0.2 + (0.8 * (data.length - i) / data.length)} />
+            ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>

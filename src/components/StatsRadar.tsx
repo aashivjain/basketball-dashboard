@@ -1,66 +1,76 @@
-import {
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Radar, ResponsiveContainer, Legend, Tooltip,
-} from 'recharts'
-import type { PlayerStats, LeagueAverages } from '../types'
-import { buildRadarData } from '../utils/stats'
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, Tooltip } from 'recharts'
+import type { LeaguePlayer, LeagueAverages } from '../types'
 
 interface Props {
-  stats: PlayerStats
+  player: LeaguePlayer
   leagueAvg: LeagueAverages
-  compareStats?: PlayerStats | null
+  teamColor: { primary: string; secondary: string }
+  compareStats?: LeaguePlayer | null
   compareName?: string
 }
 
-export default function StatsRadar({ stats, leagueAvg, compareStats, compareName }: Props) {
-  const raw = buildRadarData(stats, leagueAvg)
+export default function StatsRadar({ player, leagueAvg, teamColor, compareStats, compareName }: Props) {
+  const categories = [
+    { key: 'pts', label: 'PTS', max: 30 },
+    { key: 'reb', label: 'REB', max: 12 },
+    { key: 'ast', label: 'AST', max: 10 },
+    { key: 'stl', label: 'STL', max: 3 },
+    { key: 'blk', label: 'BLK', max: 3 },
+  ] as const
 
-  // normalize to 0-100 relative to reasonable max values for WNBA
-  const caps: Record<string, number> = { PTS: 28, REB: 12, AST: 10, STL: 3, BLK: 4 }
-
-  const chartData = raw.map(d => {
-    const cap = caps[d.label] || 20
-    const entry: Record<string, unknown> = {
-      label: d.label,
-      player: Math.min((d.player / cap) * 100, 100),
-      league: Math.min((d.league / cap) * 100, 100),
-      playerRaw: d.player.toFixed(1),
-      leagueRaw: d.league.toFixed(1),
+  const chartData = categories.map(cat => {
+    const playerVal = player[cat.key]
+    const leagueVal = leagueAvg[cat.key]
+    const normalized = (val: number) => Math.min(100, (val / cat.max) * 100)
+    return {
+      stat: cat.label,
+      player: normalized(playerVal),
+      league: normalized(leagueVal),
+      playerRaw: playerVal.toFixed(1),
+      leagueRaw: leagueVal.toFixed(1),
+      ...(compareStats ? { compare: normalized(compareStats[cat.key]), compareRaw: compareStats[cat.key].toFixed(1) } : {}),
     }
-    if (compareStats) {
-      const compRaw = buildRadarData(compareStats, leagueAvg)
-      const match = compRaw.find(c => c.label === d.label)
-      if (match) {
-        entry.compare = Math.min((match.player / cap) * 100, 100)
-        entry.compareRaw = match.player.toFixed(1)
-      }
-    }
-    return entry
   })
 
   return (
-    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5 h-full">
-      <h3 className="text-sm font-medium text-zinc-200 mb-1">Per-Game vs League Average</h3>
-      <p className="text-[11px] text-zinc-500 mb-3">All values are per game. Dashed = league avg among qualified starters.</p>
-
+    <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
+      <div className="flex items-center gap-4 mb-2 text-xs">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full" style={{ background: teamColor.primary }}></div>
+          <span className="text-slate-500">{player.name}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2 h-2 rounded-full" style={{ background: '#f59e0b' }}></div>
+          <span className="text-slate-500">League Avg</span>
+        </div>
+        {compareStats && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: teamColor.secondary }}></div>
+            <span className="text-slate-500">{compareName}</span>
+          </div>
+        )}
+      </div>
       <ResponsiveContainer width="100%" height={280}>
-        <RadarChart data={chartData} cx="50%" cy="50%" outerRadius="72%">
-          <PolarGrid stroke="#2a2a2a" />
-          <PolarAngleAxis dataKey="label" tick={{ fill: '#a1a1aa', fontSize: 11 }} />
-          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-          <Radar name="Player" dataKey="player" stroke="#f97316" fill="#f97316" fillOpacity={0.15} strokeWidth={2} />
-          <Radar name="League Avg" dataKey="league" stroke="#555" fill="transparent" strokeWidth={1.5} strokeDasharray="4 3" />
+        <RadarChart data={chartData}>
+          <PolarGrid stroke="#e2e8f0" />
+          <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: '#64748b' }} />
+          <Radar name="League Avg" dataKey="league" stroke="#f59e0b" strokeDasharray="3 3" fill="#f59e0b" fillOpacity={0.04} />
+          <Radar name={player.name} dataKey="player" stroke={teamColor.primary} fill={teamColor.primary} fillOpacity={0.12} strokeWidth={2} />
           {compareStats && (
-            <Radar name={compareName || 'Compare'} dataKey="compare" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.08} strokeWidth={1.5} />
+            <Radar name={compareName} dataKey="compare" stroke={teamColor.secondary} fill={teamColor.secondary} fillOpacity={0.06} strokeWidth={1.5} />
           )}
-          <Legend wrapperStyle={{ fontSize: '11px' }} />
           <Tooltip
-            contentStyle={{ background: '#1c1c1c', border: '1px solid #333', borderRadius: '6px', fontSize: '11px' }}
-            formatter={(_value, name, props) => {
-              const p = props.payload as Record<string, string>
-              if (name === 'Player') return [p.playerRaw, 'Player']
-              if (name === 'League Avg') return [p.leagueRaw, 'League Avg']
-              return [p.compareRaw, compareName || 'Compare']
+            content={({ payload }) => {
+              if (!payload?.length) return null
+              const d = payload[0]?.payload
+              return (
+                <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-3 text-xs">
+                  <div className="font-medium text-slate-700 mb-1">{d.stat}</div>
+                  <div style={{ color: teamColor.primary }}>{player.name}: {d.playerRaw}</div>
+                  <div style={{ color: '#f59e0b' }}>League: {d.leagueRaw}</div>
+                  {d.compareRaw && <div style={{ color: teamColor.secondary }}>{compareName}: {d.compareRaw}</div>}
+                </div>
+              )
             }}
           />
         </RadarChart>

@@ -83,11 +83,39 @@ export interface LeagueAverages {
   ft_pct: number
 }
 
+export interface LeaguePlayer {
+  player_id: number
+  name: string
+  team: string
+  gp: number
+  min: number
+  pts: number
+  reb: number
+  ast: number
+  stl: number
+  blk: number
+  tov: number
+  fgm: number
+  fga: number
+  fg_pct: number
+  fg3m: number
+  fg3a: number
+  fg3_pct: number
+  ftm: number
+  fta: number
+  ft_pct: number
+  oreb: number
+  dreb: number
+  pf: number
+  plus_minus: number
+}
+
 export interface SeasonBlock {
   stats: PlayerStats[]
   league_averages: LeagueAverages
   game_logs: Record<string, GameLog[]>
   shot_charts: Record<string, Shot[]>
+  all_players: LeaguePlayer[]
 }
 
 export interface SeasonData {

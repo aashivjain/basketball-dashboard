@@ -1,89 +1,91 @@
-import { useState } from 'react'
 import type { Shot } from '../types'
 
 interface Props {
   shots: Shot[]
+  teamColor: { primary: string; secondary: string }
 }
 
-export default function ShotChart({ shots }: Props) {
-  const [filter, setFilter] = useState<'all' | 'made' | 'missed'>('all')
-  const [hovered, setHovered] = useState<Shot | null>(null)
+export default function ShotChart({ shots, teamColor }: Props) {
+  if (shots.length === 0) {
+    return (
+      <div className="rounded-2xl p-8 text-center" style={{ background: '#f5f0e8', border: '1px solid #e8dcc8' }}>
+        <p className="text-slate-400 text-sm italic">No shot chart data available</p>
+      </div>
+    )
+  }
 
-  const visible = shots.filter(s => {
-    if (filter === 'made') return s.made
-    if (filter === 'missed') return !s.made
-    return true
-  })
+  const made = shots.filter(s => s.made)
+  const missed = shots.filter(s => !s.made)
+  const fgPct = shots.length > 0 ? ((made.length / shots.length) * 100).toFixed(1) : '0'
 
-  const made = shots.filter(s => s.made).length
-  const total = shots.length
-  const fgPct = total > 0 ? ((made / total) * 100).toFixed(1) : '0.0'
-
+  // court dimensions: NBA half-court scaled to viewBox 500x470
   return (
-    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5">
+    <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
       <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="text-sm font-medium text-zinc-200">Shot Chart</h3>
-          <span className="text-xs text-zinc-500">{made}/{total} FG ({fgPct}%)</span>
-        </div>
-        <div className="flex gap-1">
-          {(['all', 'made', 'missed'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-2 py-0.5 rounded text-[11px] ${filter === f ? 'bg-white/10 text-zinc-200' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              {f}
-            </button>
-          ))}
+        <h3 className="text-sm font-medium text-slate-600">Shot Chart</h3>
+        <div className="flex items-center gap-4 text-xs">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span>Made ({made.length})</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>Missed ({missed.length})</span>
+          <span className="text-slate-400">{fgPct}% FG</span>
         </div>
       </div>
+      <svg viewBox="0 0 500 470" className="w-full overflow-hidden rounded-xl">
+        {/* wooden court background */}
+        <defs>
+          <pattern id="wood-grain" patternUnits="userSpaceOnUse" width="200" height="200">
+            <rect width="200" height="200" fill="#c9a66b" />
+            <path d="M0 10 Q50 8 100 12 T200 10" stroke="#b8935a" strokeWidth="0.5" fill="none" opacity="0.4" />
+            <path d="M0 30 Q60 28 120 32 T200 30" stroke="#b8935a" strokeWidth="0.3" fill="none" opacity="0.3" />
+            <path d="M0 50 Q40 48 80 52 T200 50" stroke="#b8935a" strokeWidth="0.5" fill="none" opacity="0.35" />
+            <path d="M0 70 Q70 68 140 72 T200 70" stroke="#b8935a" strokeWidth="0.3" fill="none" opacity="0.3" />
+            <path d="M0 90 Q45 88 90 92 T200 90" stroke="#b8935a" strokeWidth="0.4" fill="none" opacity="0.3" />
+            <path d="M0 110 Q55 108 110 112 T200 110" stroke="#b8935a" strokeWidth="0.3" fill="none" opacity="0.25" />
+            <path d="M0 130 Q65 128 130 132 T200 130" stroke="#b8935a" strokeWidth="0.5" fill="none" opacity="0.3" />
+            <path d="M0 150 Q35 148 70 152 T200 150" stroke="#b8935a" strokeWidth="0.3" fill="none" opacity="0.25" />
+            <path d="M0 170 Q75 168 150 172 T200 170" stroke="#b8935a" strokeWidth="0.4" fill="none" opacity="0.3" />
+            <path d="M0 190 Q50 188 100 192 T200 190" stroke="#b8935a" strokeWidth="0.3" fill="none" opacity="0.25" />
+          </pattern>
+          {/* plank lines */}
+          <pattern id="planks" patternUnits="userSpaceOnUse" width="60" height="470">
+            <rect width="60" height="470" fill="transparent" />
+            <line x1="59.5" y1="0" x2="59.5" y2="470" stroke="#a0794d" strokeWidth="0.8" opacity="0.25" />
+          </pattern>
+        </defs>
 
-      <div className="relative">
-        <svg viewBox="-250 -50 500 470" className="w-full" style={{ maxHeight: '400px' }}>
-          <rect x="-250" y="-50" width="500" height="470" fill="#1a1a1a" rx="4" />
+        {/* court floor */}
+        <rect width="500" height="470" fill="url(#wood-grain)" rx="12" />
+        <rect width="500" height="470" fill="url(#planks)" rx="12" />
+        {/* slight warm overlay */}
+        <rect width="500" height="470" fill="#d4a76a" opacity="0.08" rx="12" />
 
-          {/* court lines */}
-          <rect x="-250" y="-47" width="500" height="470" fill="none" stroke="#2a2a2a" strokeWidth="1.5" />
-          <rect x="-80" y="-47" width="160" height="190" fill="none" stroke="#333" strokeWidth="1" />
-          <circle cx="0" cy="143" r="60" fill="none" stroke="#333" strokeWidth="1" />
-          <path d="M -40 -47 A 40 40 0 0 0 40 -47" fill="none" stroke="#333" strokeWidth="1" />
-          <circle cx="0" cy="-17" r="7.5" fill="none" stroke="#666" strokeWidth="1.5" />
-          <line x1="-30" y1="-47" x2="30" y2="-47" stroke="#666" strokeWidth="2" />
-          <path d="M -220 -47 L -220 89 A 237 237 0 0 0 220 89 L 220 -47" fill="none" stroke="#333" strokeWidth="1" strokeDasharray="5,4" />
+        {/* court lines */}
+        <g stroke="#fff" strokeWidth="1.5" fill="none" opacity="0.75">
+          {/* outer boundary */}
+          <rect x="20" y="20" width="460" height="430" rx="2" />
+          {/* paint/key */}
+          <rect x="170" y="20" width="160" height="190" />
+          {/* free throw circle */}
+          <circle cx="250" cy="210" r="60" />
+          {/* basket */}
+          <circle cx="250" cy="60" r="7.5" strokeWidth="2" />
+          {/* backboard */}
+          <line x1="220" y1="43" x2="280" y2="43" strokeWidth="2.5" />
+          {/* restricted area */}
+          <path d="M 210 43 A 40 40 0 0 0 290 43" />
+          {/* 3-point line */}
+          <path d="M 30 43 L 30 150 A 238 238 0 0 0 470 150 L 470 43" />
+          {/* half-court line */}
+          <line x1="20" y1="450" x2="480" y2="450" strokeWidth="1" opacity="0.4" />
+        </g>
 
-          {visible.map((shot, i) => (
-            <circle
-              key={i}
-              cx={shot.x}
-              cy={shot.y}
-              r={hovered === shot ? 5.5 : 3.5}
-              fill={shot.made ? '#4ade80' : '#f87171'}
-              opacity={hovered === shot ? 1 : 0.65}
-              stroke={hovered === shot ? '#fff' : 'none'}
-              strokeWidth={1}
-              className="cursor-pointer"
-              onMouseEnter={() => setHovered(shot)}
-              onMouseLeave={() => setHovered(null)}
-            />
-          ))}
-        </svg>
-
-        {hovered && (
-          <div className="absolute top-2 right-2 bg-[#1c1c1c] border border-white/10 rounded p-2.5 text-[11px] shadow-lg">
-            <div className="text-zinc-200">{hovered.shot_type}</div>
-            <div className="text-zinc-500">{hovered.shot_zone} &middot; {hovered.shot_distance}ft</div>
-            <div className={`mt-1 font-medium ${hovered.made ? 'text-green-400' : 'text-red-400'}`}>
-              {hovered.made ? 'Made' : 'Missed'}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-center gap-5 mt-3 text-[11px] text-zinc-500">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400" /> Made ({made})</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400" /> Missed ({total - made})</span>
-      </div>
+        {/* shot dots - missed first so made overlay */}
+        {missed.map((s, i) => (
+          <circle key={`m${i}`} cx={250 + s.x} cy={43 + s.y} r="4" fill="#ef4444" opacity="0.55" />
+        ))}
+        {made.map((s, i) => (
+          <circle key={`h${i}`} cx={250 + s.x} cy={43 + s.y} r="4.5" fill="#22c55e" opacity="0.7" />
+        ))}
+      </svg>
     </div>
   )
 }

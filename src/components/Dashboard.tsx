@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import type { FeverData, SeasonData, PlayerStats, Player } from '../types'
-import PlayerSelector from './PlayerSelector'
+import type { FeverData, SeasonData, PlayerStats, LeaguePlayer } from '../types'
+import { getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
 import ShotChart from './ShotChart'
 import StatsRadar from './StatsRadar'
@@ -21,12 +21,22 @@ export default function Dashboard() {
   const [playerId, setPlayerId] = useState<number | null>(null)
   const [compareId, setCompareId] = useState<number | null>(null)
   const [showCompare, setShowCompare] = useState(false)
+  const [tab, setTab] = useState<'overview' | 'compare'>('overview')
 
   const seasonData = data.seasons[season] as SeasonData | null
-  const roster = seasonData?.roster ?? []
   const block = seasonData ? seasonData[seasonType] : null
+  const allPlayers: LeaguePlayer[] = useMemo(() => block?.all_players ?? [], [block])
 
-  const player = useMemo(() => roster.find(p => p.player_id === playerId) ?? null, [roster, playerId])
+  const playersByTeam = useMemo(() => {
+    const map: Record<string, LeaguePlayer[]> = {}
+    for (const p of allPlayers) {
+      if (!map[p.team]) map[p.team] = []
+      map[p.team].push(p)
+    }
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [allPlayers])
+
+  const player = useMemo(() => allPlayers.find(p => p.player_id === playerId) ?? null, [allPlayers, playerId])
   const stats: PlayerStats | null = useMemo(
     () => block?.stats.find(s => s.player_id === playerId) ?? null,
     [block, playerId]
@@ -34,18 +44,11 @@ export default function Dashboard() {
   const games = useMemo(() => (playerId && block ? block.game_logs[String(playerId)] ?? [] : []), [block, playerId])
   const shots = useMemo(() => (playerId && block ? block.shot_charts[String(playerId)] ?? [] : []), [block, playerId])
   const leagueAvg = block?.league_averages ?? null
-
-  // for comparison
-  const compareStats: PlayerStats | null = useMemo(
-    () => (compareId && block ? block.stats.find(s => s.player_id === compareId) ?? null : null),
-    [block, compareId]
-  )
-  const comparePlayer: Player | null = useMemo(
-    () => roster.find(p => p.player_id === compareId) ?? null,
-    [roster, compareId]
+  const comparePlayer: LeaguePlayer | null = useMemo(
+    () => allPlayers.find(p => p.player_id === compareId) ?? null,
+    [allPlayers, compareId]
   )
 
-  // gather multi-year stats for growth view
   const growthData = useMemo(() => {
     if (!playerId) return []
     return availableSeasons.map(yr => {
@@ -57,105 +60,141 @@ export default function Dashboard() {
     }).filter(Boolean) as (PlayerStats & { season: string })[]
   }, [playerId])
 
+  const teamColor = player ? getTeamColors(player.team) : null
+
   return (
-    <div className="min-h-screen">
-      {/* top bar */}
-      <header className="sticky top-0 z-40 bg-[#121418]/90 backdrop-blur border-b border-white/5">
-        <div className="max-w-[1400px] mx-auto px-5 py-3 flex items-center gap-4 flex-wrap">
-          <h1 className="text-base font-semibold text-white mr-auto tracking-tight">
-            {data.team.name} <span className="text-zinc-500 font-normal">/ analytics</span>
+    <div className="min-h-screen transition-colors duration-500" style={{ background: teamColor ? teamColor.bg : '#fafafa' }}>
+      {/* fluid header - no hard border, just a gentle fade */}
+      <header className="sticky top-0 z-40 backdrop-blur-md" style={{ background: teamColor ? `${teamColor.bg}ee` : 'rgba(250,250,250,0.92)' }}>
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-5 flex-wrap">
+          <h1 className="text-lg tracking-tight mr-auto" style={{ fontFamily: "'Georgia', serif", color: teamColor ? teamColor.primary : '#1e293b' }}>
+            WNBA Analytics
           </h1>
 
-          {/* season picker */}
-          <div className="flex items-center gap-1 text-xs">
+          <nav className="flex gap-2 text-sm">
+            <button
+              onClick={() => setTab('overview')}
+              className="transition-all"
+              style={{ color: tab === 'overview' ? (teamColor?.primary ?? '#0d9488') : '#94a3b8', fontWeight: tab === 'overview' ? 600 : 400 }}
+            >Overview</button>
+            <span className="text-slate-300">|</span>
+            <button
+              onClick={() => setTab('compare')}
+              className="transition-all"
+              style={{ color: tab === 'compare' ? (teamColor?.primary ?? '#0d9488') : '#94a3b8', fontWeight: tab === 'compare' ? 600 : 400 }}
+            >Compare</button>
+          </nav>
+
+          <div className="flex items-center gap-2 text-sm">
             {availableSeasons.map(yr => (
               <button
                 key={yr}
                 onClick={() => setSeason(yr)}
-                className={`px-2.5 py-1 rounded ${season === yr ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                {yr}
-              </button>
+                className="transition-all px-2 py-0.5 rounded-full"
+                style={{
+                  background: season === yr ? (teamColor?.primary ?? '#334155') : 'transparent',
+                  color: season === yr ? '#fff' : '#94a3b8',
+                  fontSize: '13px',
+                }}
+              >{yr}</button>
             ))}
           </div>
 
-          {/* regular / playoffs toggle */}
-          <div className="flex items-center gap-1 text-xs border-l border-white/10 pl-3">
-            <button
-              onClick={() => setSeasonType('regular_season')}
-              className={`px-2.5 py-1 rounded ${seasonType === 'regular_season' ? 'bg-orange-500/20 text-orange-300' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              Regular
-            </button>
-            <button
-              onClick={() => setSeasonType('playoffs')}
-              className={`px-2.5 py-1 rounded ${seasonType === 'playoffs' ? 'bg-orange-500/20 text-orange-300' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              Playoffs
-            </button>
+          <div className="flex gap-2 text-sm">
+            {(['regular_season', 'playoffs'] as const).map(st => (
+              <button
+                key={st}
+                onClick={() => setSeasonType(st)}
+                className="transition-all"
+                style={{ color: seasonType === st ? (teamColor?.primary ?? '#334155') : '#94a3b8', fontWeight: seasonType === st ? 600 : 400, fontSize: '13px' }}
+              >{st === 'regular_season' ? 'Regular' : 'Playoffs'}</button>
+            ))}
           </div>
 
-          {/* player dropdown */}
-          <div className="w-56">
-            <PlayerSelector players={roster} selectedId={playerId} onSelect={(id) => { setPlayerId(id); setCompareId(null); setShowCompare(false) }} />
-          </div>
+          <select
+            value={playerId ?? ''}
+            onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
+            className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all"
+            style={{ border: `1.5px solid ${teamColor?.primary ?? '#cbd5e1'}`, background: 'white', color: '#334155' }}
+          >
+            <option value="" disabled>Choose player</option>
+            {playersByTeam.map(([team, players]) => (
+              <optgroup key={team} label={team}>
+                {players.map(p => (
+                  <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto px-5 py-6">
-        {!player || !stats || !leagueAvg ? (
-          <LandingGrid roster={roster} onSelect={setPlayerId} />
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        {tab === 'compare' ? (
+          <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
+        ) : !player || !leagueAvg ? (
+          <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
         ) : (
-          <div className="space-y-5">
-            {/* row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-              <div className="lg:col-span-3">
-                <PlayerCard player={player} stats={stats} />
-              </div>
-              <div className="lg:col-span-5">
-                <StatsRadar stats={stats} leagueAvg={leagueAvg} compareStats={compareStats} compareName={comparePlayer?.name} />
-              </div>
-              <div className="lg:col-span-4">
-                <ShotZoneBreakdown shots={shots} />
+          <div className="space-y-8">
+            {/* player intro */}
+            <div className="flex items-end gap-6 flex-wrap">
+              <div>
+                <p className="text-sm uppercase tracking-widest mb-1" style={{ color: teamColor?.primary ?? '#64748b' }}>{player.team}</p>
+                <h2 className="text-3xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif", color: '#1e293b' }}>{player.name}</h2>
+                <p className="text-sm text-slate-400 mt-1">{player.gp} games &middot; {player.min.toFixed(1)} min/game &middot; {season}</p>
               </div>
             </div>
 
-            {/* row 2 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <ShotChart shots={shots} />
-              <PerformanceTrend games={games} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <PlayerCard player={player} stats={stats} teamColor={teamColor!} />
+              <div className="lg:col-span-2">
+                <StatsRadar player={player} leagueAvg={leagueAvg} teamColor={teamColor!} compareStats={comparePlayer} compareName={comparePlayer?.name} />
+              </div>
             </div>
 
-            {/* comparison toggle */}
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ShotChart shots={shots} teamColor={teamColor!} />
+              {shots.length > 0 && <ShotZoneBreakdown shots={shots} teamColor={teamColor!} />}
+            </div>
+
+            {games.length > 0 && (
+              <PerformanceTrend games={games} teamColor={teamColor!} />
+            )}
+
+            {/* compare */}
+            <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => setShowCompare(!showCompare)}
-                className="text-xs px-3 py-1.5 rounded bg-white/5 text-zinc-400 hover:text-white border border-white/10"
-              >
-                {showCompare ? 'Hide Comparison' : 'Compare with teammate'}
-              </button>
+                className="text-sm px-4 py-2 rounded-full transition-all"
+                style={{ border: `1.5px solid ${teamColor?.primary ?? '#cbd5e1'}`, color: teamColor?.primary ?? '#334155', background: 'white' }}
+              >{showCompare ? 'Hide comparison' : 'Compare with another player'}</button>
               {showCompare && (
-                <div className="w-48">
-                  <PlayerSelector
-                    players={roster.filter(p => p.player_id !== playerId)}
-                    selectedId={compareId}
-                    onSelect={setCompareId}
-                  />
-                </div>
+                <select
+                  value={compareId ?? ''}
+                  onChange={e => setCompareId(Number(e.target.value))}
+                  className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none border border-slate-300 bg-white"
+                >
+                  <option value="" disabled>Pick any WNBA player</option>
+                  {playersByTeam.map(([team, players]) => (
+                    <optgroup key={team} label={team}>
+                      {players.filter(p => p.player_id !== playerId).map(p => (
+                        <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               )}
             </div>
 
-            {showCompare && compareStats && stats && leagueAvg && (
-              <PlayerComparison playerA={stats} playerB={compareStats} nameA={player.name} nameB={comparePlayer?.name ?? ''} />
+            {showCompare && comparePlayer && player && (
+              <PlayerComparison playerA={player} playerB={comparePlayer} nameA={player.name} nameB={comparePlayer.name} teamColorA={teamColor!} teamColorB={getTeamColors(comparePlayer.team)} />
             )}
 
-            {/* year over year growth */}
             {growthData.length > 1 && (
-              <GrowthChart data={growthData} playerName={player.name} />
+              <GrowthChart data={growthData} playerName={player.name} teamColor={teamColor!} />
             )}
 
-            {/* game log */}
-            <GameLogTable games={games} />
+            {games.length > 0 && <GameLogTable games={games} teamColor={teamColor!} />}
           </div>
         )}
       </main>
@@ -163,22 +202,121 @@ export default function Dashboard() {
   )
 }
 
-function LandingGrid({ roster, onSelect }: { roster: Player[]; onSelect: (id: number) => void }) {
+function LandingGrid({ playersByTeam, onSelect }: { playersByTeam: [string, LeaguePlayer[]][]; onSelect: (id: number) => void }) {
   return (
-    <div className="py-12">
-      <p className="text-zinc-500 text-sm mb-6">Pick a player to get started</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-        {roster.map(p => (
-          <button
-            key={p.player_id}
-            onClick={() => onSelect(p.player_id)}
-            className="text-left p-3 rounded-lg bg-white/[0.03] border border-white/5 hover:border-orange-400/30 hover:bg-white/[0.05] transition-colors"
+    <div className="py-4">
+      <h2 className="text-2xl font-light tracking-tight mb-2" style={{ fontFamily: "'Georgia', serif" }}>2026 Season</h2>
+      <p className="text-slate-400 text-sm mb-8">Select a player to explore their stats</p>
+      <div className="space-y-8">
+        {playersByTeam.map(([team, players]) => {
+          const tc = getTeamColors(team)
+          return (
+            <div key={team}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-3 h-3 rounded-full" style={{ background: tc.primary }}></div>
+                <h3 className="text-sm font-semibold tracking-wide" style={{ color: tc.primary }}>{team}</h3>
+                <div className="flex-1 h-px" style={{ background: `${tc.primary}22` }}></div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {players.map(p => (
+                  <button
+                    key={p.player_id}
+                    onClick={() => onSelect(p.player_id)}
+                    className="px-3 py-1.5 rounded-full text-sm bg-white border transition-all hover:shadow-md"
+                    style={{ borderColor: `${tc.primary}30`, color: '#334155' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = tc.primary; e.currentTarget.style.color = tc.primary }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = `${tc.primary}30`; e.currentTarget.style.color = '#334155' }}
+                  >
+                    {p.name} <span className="text-slate-400 text-xs ml-1">{p.pts.toFixed(1)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: LeaguePlayer[]; playersByTeam: [string, LeaguePlayer[]][]; season: string }) {
+  const [idA, setIdA] = useState<number | null>(null)
+  const [idB, setIdB] = useState<number | null>(null)
+
+  const playerA = allPlayers.find(p => p.player_id === idA) ?? null
+  const playerB = allPlayers.find(p => p.player_id === idB) ?? null
+  const colorA = playerA ? getTeamColors(playerA.team) : null
+  const colorB = playerB ? getTeamColors(playerB.team) : null
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>Compare Players</h2>
+        <p className="text-sm text-slate-400 mt-1">{season} season &middot; All WNBA</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">Player A</label>
+          <select
+            value={idA ?? ''}
+            onChange={e => setIdA(Number(e.target.value))}
+            className="w-full rounded-full px-4 py-2 text-sm bg-white border border-slate-200 cursor-pointer focus:outline-none"
           >
-            <span className="text-zinc-600 text-[11px] font-mono">#{p.number}</span>
-            <div className="text-sm text-zinc-200 font-medium mt-0.5">{p.name}</div>
-            <span className="text-[11px] text-zinc-500">{p.position}</span>
-          </button>
-        ))}
+            <option value="" disabled>Choose a player</option>
+            {playersByTeam.map(([team, players]) => (
+              <optgroup key={team} label={team}>
+                {players.map(p => (
+                  <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">Player B</label>
+          <select
+            value={idB ?? ''}
+            onChange={e => setIdB(Number(e.target.value))}
+            className="w-full rounded-full px-4 py-2 text-sm bg-white border border-slate-200 cursor-pointer focus:outline-none"
+          >
+            <option value="" disabled>Choose a player</option>
+            {playersByTeam.map(([team, players]) => (
+              <optgroup key={team} label={team}>
+                {players.map(p => (
+                  <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {playerA && playerB && colorA && colorB ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CompareCard player={playerA} tc={colorA} />
+            <CompareCard player={playerB} tc={colorB} />
+          </div>
+          <PlayerComparison playerA={playerA} playerB={playerB} nameA={playerA.name} nameB={playerB.name} teamColorA={colorA} teamColorB={colorB} />
+        </div>
+      ) : (
+        <p className="text-center py-16 text-slate-300 text-sm italic">Pick two players to compare</p>
+      )}
+    </div>
+  )
+}
+
+function CompareCard({ player, tc }: { player: LeaguePlayer; tc: { primary: string; bg: string } }) {
+  return (
+    <div className="rounded-2xl p-5 transition-all" style={{ background: tc.bg, border: `1px solid ${tc.primary}20` }}>
+      <h3 className="text-lg font-medium" style={{ color: tc.primary }}>{player.name}</h3>
+      <p className="text-xs text-slate-400 mb-3">{player.team} &middot; {player.gp} GP &middot; {player.min.toFixed(1)} MPG</p>
+      <div className="grid grid-cols-4 gap-3 text-center">
+        <div><div className="text-base font-semibold text-slate-700">{player.pts.toFixed(1)}</div><div className="text-[10px] text-slate-400">PTS</div></div>
+        <div><div className="text-base font-semibold text-slate-700">{player.reb.toFixed(1)}</div><div className="text-[10px] text-slate-400">REB</div></div>
+        <div><div className="text-base font-semibold text-slate-700">{player.ast.toFixed(1)}</div><div className="text-[10px] text-slate-400">AST</div></div>
+        <div><div className="text-base font-semibold text-slate-700">{player.stl.toFixed(1)}</div><div className="text-[10px] text-slate-400">STL</div></div>
       </div>
     </div>
   )

@@ -1,53 +1,60 @@
-import type { Player, PlayerStats } from '../types'
-import { fmt, pct } from '../utils/stats'
+import type { LeaguePlayer, PlayerStats } from '../types'
 
 interface Props {
-  player: Player
-  stats: PlayerStats
+  player: LeaguePlayer
+  stats: PlayerStats | null
+  teamColor: { primary: string; secondary: string; bg: string }
 }
 
-export default function PlayerCard({ player, stats }: Props) {
+export default function PlayerCard({ player, stats, teamColor }: Props) {
+  const s = stats || player
+
   return (
-    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5 h-full">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h2 className="text-lg font-semibold text-white">{player.name}</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            {player.position} &middot; #{player.number} &middot; {player.height}
-          </p>
+    <div className="rounded-2xl p-6 transition-all" style={{ background: 'white', border: `1px solid ${teamColor.primary}15` }}>
+      <div className="space-y-4">
+        {/* main stat - ppg */}
+        <div className="text-center">
+          <div className="text-4xl font-light tracking-tight" style={{ color: teamColor.primary }}>{s.pts.toFixed(1)}</div>
+          <div className="text-[11px] uppercase tracking-widest text-slate-400 mt-1">points per game</div>
         </div>
-        <span className="text-2xl font-bold text-zinc-600 font-mono">#{player.number}</span>
-      </div>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400 mb-4">
-        <span>Age: <span className="text-zinc-200">{player.age}</span></span>
-        <span>Exp: <span className="text-zinc-200">{player.experience === 'R' ? 'Rookie' : player.experience + ' yr'}</span></span>
-        <span>School: <span className="text-zinc-200">{player.school}</span></span>
-        <span>GP: <span className="text-zinc-200">{stats.gp}</span></span>
-      </div>
+        <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
 
-      <div className="border-t border-white/5 pt-3">
-        <div className="grid grid-cols-4 gap-2 text-center">
-          <Stat label="PTS" value={fmt(stats.pts)} highlight />
-          <Stat label="REB" value={fmt(stats.reb)} />
-          <Stat label="AST" value={fmt(stats.ast)} />
-          <Stat label="STL" value={fmt(stats.stl)} />
+        <div className="grid grid-cols-2 gap-4">
+          <StatItem label="REB" value={s.reb.toFixed(1)} color={teamColor.primary} />
+          <StatItem label="AST" value={s.ast.toFixed(1)} color={teamColor.primary} />
+          <StatItem label="STL" value={s.stl.toFixed(1)} color={teamColor.primary} />
+          <StatItem label="BLK" value={s.blk.toFixed(1)} color={teamColor.primary} />
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center mt-2">
-          <Stat label="FG%" value={pct(stats.fg_pct) + '%'} />
-          <Stat label="3P%" value={pct(stats.fg3_pct) + '%'} />
-          <Stat label="FT%" value={pct(stats.ft_pct) + '%'} />
+
+        <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
+
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <MiniStat label="FG%" value={stats ? `${(stats.fg_pct * 100).toFixed(1)}` : '—'} />
+          <MiniStat label="3P%" value={stats ? `${(stats.fg3_pct * 100).toFixed(1)}` : '—'} />
+          <MiniStat label="FT%" value={stats ? `${(stats.ft_pct * 100).toFixed(1)}` : '—'} />
         </div>
       </div>
     </div>
   )
 }
 
-function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function StatItem({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="py-1">
-      <div className={`text-base font-semibold ${highlight ? 'text-orange-300' : 'text-zinc-100'}`}>{value}</div>
-      <div className="text-[10px] text-zinc-500 uppercase">{label}</div>
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium" style={{ background: `${color}12`, color }}>
+        {label}
+      </div>
+      <span className="text-lg font-medium text-slate-700">{value}</span>
+    </div>
+  )
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-sm font-medium text-slate-700">{value}</div>
+      <div className="text-[10px] text-slate-400">{label}</div>
     </div>
   )
 }

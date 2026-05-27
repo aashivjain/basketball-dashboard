@@ -1,61 +1,55 @@
-import type { PlayerStats } from '../types'
-import { fmt, pct } from '../utils/stats'
+import type { LeaguePlayer } from '../types'
 
 interface Props {
-  playerA: PlayerStats
-  playerB: PlayerStats
+  playerA: LeaguePlayer
+  playerB: LeaguePlayer
   nameA: string
   nameB: string
+  teamColorA: { primary: string; bg: string }
+  teamColorB: { primary: string; bg: string }
 }
 
-export default function PlayerComparison({ playerA, playerB, nameA, nameB }: Props) {
-  const rows: { label: string; a: string; b: string; higher: 'a' | 'b' | 'tie' }[] = [
-    compare('PTS', playerA.pts, playerB.pts),
-    compare('REB', playerA.reb, playerB.reb),
-    compare('AST', playerA.ast, playerB.ast),
-    compare('STL', playerA.stl, playerB.stl),
-    compare('BLK', playerA.blk, playerB.blk),
-    compare('FG%', playerA.fg_pct, playerB.fg_pct, true),
-    compare('3P%', playerA.fg3_pct, playerB.fg3_pct, true),
-    compare('FT%', playerA.ft_pct, playerB.ft_pct, true),
-    compare('TOV', playerA.tov, playerB.tov, false, true),
-    compare('+/-', playerA.plus_minus, playerB.plus_minus),
-  ]
+const metrics = [
+  { key: 'pts', label: 'Points' },
+  { key: 'reb', label: 'Rebounds' },
+  { key: 'ast', label: 'Assists' },
+  { key: 'stl', label: 'Steals' },
+  { key: 'blk', label: 'Blocks' },
+  { key: 'min', label: 'Minutes' },
+] as const
 
+export default function PlayerComparison({ playerA, playerB, nameA, nameB, teamColorA, teamColorB }: Props) {
   return (
-    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5">
-      <h3 className="text-sm font-medium text-zinc-200 mb-4">Head-to-Head Comparison</h3>
-
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-x-4 gap-y-1 text-xs">
-        {/* header */}
-        <div className="text-right text-orange-400 font-medium pb-2 border-b border-white/5">{nameA.split(' ').pop()}</div>
-        <div className="text-center text-zinc-500 pb-2 border-b border-white/5">Stat</div>
-        <div className="text-left text-sky-400 font-medium pb-2 border-b border-white/5">{nameB.split(' ').pop()}</div>
-
-        {rows.map(r => (
-          <Row key={r.label} {...r} />
-        ))}
+    <div className="rounded-2xl p-5 bg-white border border-slate-100">
+      <div className="grid grid-cols-3 text-xs font-medium text-center mb-4">
+        <div style={{ color: teamColorA.primary }}>{nameA}</div>
+        <div className="text-slate-400">vs</div>
+        <div style={{ color: teamColorB.primary }}>{nameB}</div>
+      </div>
+      <div className="space-y-3">
+        {metrics.map(m => {
+          const a = playerA[m.key]
+          const b = playerB[m.key]
+          const max = Math.max(a, b, 0.1)
+          return (
+            <div key={m.key} className="grid grid-cols-[1fr_80px_1fr] items-center gap-2">
+              <div className="flex items-center justify-end gap-2">
+                <span className="text-sm font-medium" style={{ color: a >= b ? teamColorA.primary : '#94a3b8' }}>{a.toFixed(1)}</span>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full float-right transition-all" style={{ width: `${(a / max) * 100}%`, background: teamColorA.primary, opacity: a >= b ? 0.8 : 0.3 }}></div>
+                </div>
+              </div>
+              <div className="text-center text-[10px] text-slate-400 uppercase tracking-wider">{m.label}</div>
+              <div className="flex items-center gap-2">
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${(b / max) * 100}%`, background: teamColorB.primary, opacity: b >= a ? 0.8 : 0.3 }}></div>
+                </div>
+                <span className="text-sm font-medium" style={{ color: b >= a ? teamColorB.primary : '#94a3b8' }}>{b.toFixed(1)}</span>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
-}
-
-function Row({ label, a, b, higher }: { label: string; a: string; b: string; higher: 'a' | 'b' | 'tie' }) {
-  return (
-    <>
-      <div className={`text-right py-1 ${higher === 'a' ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}>{a}</div>
-      <div className="text-center py-1 text-zinc-600">{label}</div>
-      <div className={`text-left py-1 ${higher === 'b' ? 'text-zinc-100 font-medium' : 'text-zinc-500'}`}>{b}</div>
-    </>
-  )
-}
-
-function compare(label: string, a: number, b: number, isPct = false, lowerBetter = false): { label: string; a: string; b: string; higher: 'a' | 'b' | 'tie' } {
-  const format = isPct ? (v: number) => pct(v) + '%' : (v: number) => fmt(v)
-  let higher: 'a' | 'b' | 'tie' = 'tie'
-  if (a !== b) {
-    if (lowerBetter) higher = a < b ? 'a' : 'b'
-    else higher = a > b ? 'a' : 'b'
-  }
-  return { label, a: format(a), b: format(b), higher }
 }
