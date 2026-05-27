@@ -1,139 +1,185 @@
-import { useState, useMemo } from 'react';
-import type { TeamData } from '../types';
-import PlayerSelector from './PlayerSelector';
-import PlayerCard from './PlayerCard';
-import ShotChart from './ShotChart';
-import StatsRadar from './StatsRadar';
-import PerformanceTrend from './PerformanceTrend';
-import GameLogTable from './GameLogTable';
-import ShotZoneBreakdown from './ShotZoneBreakdown';
+import { useState, useMemo } from 'react'
+import type { FeverData, SeasonData, PlayerStats, Player } from '../types'
+import PlayerSelector from './PlayerSelector'
+import PlayerCard from './PlayerCard'
+import ShotChart from './ShotChart'
+import StatsRadar from './StatsRadar'
+import PerformanceTrend from './PerformanceTrend'
+import GameLogTable from './GameLogTable'
+import ShotZoneBreakdown from './ShotZoneBreakdown'
+import PlayerComparison from './PlayerComparison'
+import GrowthChart from './GrowthChart'
 
-import feverData from '../data/fever_data.json';
+import rawData from '../data/fever_data.json'
+
+const data = rawData as unknown as FeverData
+const availableSeasons = Object.keys(data.seasons).filter(s => data.seasons[s] !== null).sort()
 
 export default function Dashboard() {
-  const data = feverData as unknown as TeamData;
-  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null);
+  const [season, setSeason] = useState(data.team.current_season)
+  const [seasonType, setSeasonType] = useState<'regular_season' | 'playoffs'>('regular_season')
+  const [playerId, setPlayerId] = useState<number | null>(null)
+  const [compareId, setCompareId] = useState<number | null>(null)
+  const [showCompare, setShowCompare] = useState(false)
 
-  const selectedPlayer = useMemo(
-    () => data.roster.find((p) => p.player_id === selectedPlayerId) ?? null,
-    [data.roster, selectedPlayerId]
-  );
+  const seasonData = data.seasons[season] as SeasonData | null
+  const roster = seasonData?.roster ?? []
+  const block = seasonData ? seasonData[seasonType] : null
 
-  const selectedStats = useMemo(
-    () => data.season_stats.find((s) => s.player_id === selectedPlayerId) ?? null,
-    [data.season_stats, selectedPlayerId]
-  );
+  const player = useMemo(() => roster.find(p => p.player_id === playerId) ?? null, [roster, playerId])
+  const stats: PlayerStats | null = useMemo(
+    () => block?.stats.find(s => s.player_id === playerId) ?? null,
+    [block, playerId]
+  )
+  const games = useMemo(() => (playerId && block ? block.game_logs[String(playerId)] ?? [] : []), [block, playerId])
+  const shots = useMemo(() => (playerId && block ? block.shot_charts[String(playerId)] ?? [] : []), [block, playerId])
+  const leagueAvg = block?.league_averages ?? null
 
-  const selectedGameLog = useMemo(
-    () => (selectedPlayerId ? data.game_logs[String(selectedPlayerId)] ?? [] : []),
-    [data.game_logs, selectedPlayerId]
-  );
+  // for comparison
+  const compareStats: PlayerStats | null = useMemo(
+    () => (compareId && block ? block.stats.find(s => s.player_id === compareId) ?? null : null),
+    [block, compareId]
+  )
+  const comparePlayer: Player | null = useMemo(
+    () => roster.find(p => p.player_id === compareId) ?? null,
+    [roster, compareId]
+  )
 
-  const selectedShots = useMemo(
-    () => (selectedPlayerId ? data.shot_charts[String(selectedPlayerId)] ?? [] : []),
-    [data.shot_charts, selectedPlayerId]
-  );
+  // gather multi-year stats for growth view
+  const growthData = useMemo(() => {
+    if (!playerId) return []
+    return availableSeasons.map(yr => {
+      const sd = data.seasons[yr]
+      if (!sd) return null
+      const s = sd.regular_season.stats.find(x => x.player_id === playerId)
+      if (!s) return null
+      return { season: yr, ...s }
+    }).filter(Boolean) as (PlayerStats & { season: string })[]
+  }, [playerId])
 
   return (
-    <div className="min-h-screen bg-[#0f1117]">
-      {/* Header */}
-      <header className="border-b border-[#2d3148] bg-[#0f1117]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#ffcd00] rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-[#041e42]" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">
-                {data.team.name}
-              </h1>
-              <p className="text-xs text-gray-500">{data.team.season} Season Analytics</p>
-            </div>
+    <div className="min-h-screen">
+      {/* top bar */}
+      <header className="sticky top-0 z-40 bg-[#121418]/90 backdrop-blur border-b border-white/5">
+        <div className="max-w-[1400px] mx-auto px-5 py-3 flex items-center gap-4 flex-wrap">
+          <h1 className="text-base font-semibold text-white mr-auto tracking-tight">
+            {data.team.name} <span className="text-zinc-500 font-normal">/ analytics</span>
+          </h1>
+
+          {/* season picker */}
+          <div className="flex items-center gap-1 text-xs">
+            {availableSeasons.map(yr => (
+              <button
+                key={yr}
+                onClick={() => setSeason(yr)}
+                className={`px-2.5 py-1 rounded ${season === yr ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                {yr}
+              </button>
+            ))}
           </div>
-          <div className="w-64">
-            <PlayerSelector
-              players={data.roster}
-              selectedId={selectedPlayerId}
-              onSelect={setSelectedPlayerId}
-            />
+
+          {/* regular / playoffs toggle */}
+          <div className="flex items-center gap-1 text-xs border-l border-white/10 pl-3">
+            <button
+              onClick={() => setSeasonType('regular_season')}
+              className={`px-2.5 py-1 rounded ${seasonType === 'regular_season' ? 'bg-orange-500/20 text-orange-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+              Regular
+            </button>
+            <button
+              onClick={() => setSeasonType('playoffs')}
+              className={`px-2.5 py-1 rounded ${seasonType === 'playoffs' ? 'bg-orange-500/20 text-orange-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+              Playoffs
+            </button>
+          </div>
+
+          {/* player dropdown */}
+          <div className="w-56">
+            <PlayerSelector players={roster} selectedId={playerId} onSelect={(id) => { setPlayerId(id); setCompareId(null); setShowCompare(false) }} />
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {!selectedPlayer ? (
-          <EmptyState roster={data.roster} onSelect={setSelectedPlayerId} />
-        ) : selectedStats ? (
-          <div className="space-y-6">
-            {/* Top row: Player card + Radar */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <PlayerCard player={selectedPlayer} stats={selectedStats} />
-              </div>
-              <div className="lg:col-span-1">
-                <StatsRadar stats={selectedStats} leagueAvg={data.league_averages} />
-              </div>
-              <div className="lg:col-span-1">
-                <ShotZoneBreakdown shots={selectedShots} />
-              </div>
-            </div>
-
-            {/* Middle row: Shot chart + Performance trend */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ShotChart shots={selectedShots} playerName={selectedPlayer.name} />
-              <PerformanceTrend games={selectedGameLog} playerName={selectedPlayer.name} />
-            </div>
-
-            {/* Bottom: Game log */}
-            <GameLogTable games={selectedGameLog} />
-          </div>
+      <main className="max-w-[1400px] mx-auto px-5 py-6">
+        {!player || !stats || !leagueAvg ? (
+          <LandingGrid roster={roster} onSelect={setPlayerId} />
         ) : (
-          <div className="text-center py-20 text-gray-500">
-            No stats available for this player.
+          <div className="space-y-5">
+            {/* row 1 */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              <div className="lg:col-span-3">
+                <PlayerCard player={player} stats={stats} />
+              </div>
+              <div className="lg:col-span-5">
+                <StatsRadar stats={stats} leagueAvg={leagueAvg} compareStats={compareStats} compareName={comparePlayer?.name} />
+              </div>
+              <div className="lg:col-span-4">
+                <ShotZoneBreakdown shots={shots} />
+              </div>
+            </div>
+
+            {/* row 2 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <ShotChart shots={shots} />
+              <PerformanceTrend games={games} />
+            </div>
+
+            {/* comparison toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowCompare(!showCompare)}
+                className="text-xs px-3 py-1.5 rounded bg-white/5 text-zinc-400 hover:text-white border border-white/10"
+              >
+                {showCompare ? 'Hide Comparison' : 'Compare with teammate'}
+              </button>
+              {showCompare && (
+                <div className="w-48">
+                  <PlayerSelector
+                    players={roster.filter(p => p.player_id !== playerId)}
+                    selectedId={compareId}
+                    onSelect={setCompareId}
+                  />
+                </div>
+              )}
+            </div>
+
+            {showCompare && compareStats && stats && leagueAvg && (
+              <PlayerComparison playerA={stats} playerB={compareStats} nameA={player.name} nameB={comparePlayer?.name ?? ''} />
+            )}
+
+            {/* year over year growth */}
+            {growthData.length > 1 && (
+              <GrowthChart data={growthData} playerName={player.name} />
+            )}
+
+            {/* game log */}
+            <GameLogTable games={games} />
           </div>
         )}
       </main>
     </div>
-  );
+  )
 }
 
-function EmptyState({
-  roster,
-  onSelect,
-}: {
-  roster: TeamData['roster'];
-  onSelect: (id: number) => void;
-}) {
+function LandingGrid({ roster, onSelect }: { roster: Player[]; onSelect: (id: number) => void }) {
   return (
-    <div className="text-center py-16">
-      <div className="w-16 h-16 bg-[#ffcd00]/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-        <svg className="w-8 h-8 text-[#ffcd00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      </div>
-      <h2 className="text-xl font-bold text-white mb-2">Select a Player</h2>
-      <p className="text-gray-500 text-sm mb-8 max-w-md mx-auto">
-        Choose a player from the Indiana Fever roster to view their stats, shot chart, and performance trends.
-      </p>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-w-2xl mx-auto">
-        {roster.map((p) => (
+    <div className="py-12">
+      <p className="text-zinc-500 text-sm mb-6">Pick a player to get started</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+        {roster.map(p => (
           <button
             key={p.player_id}
             onClick={() => onSelect(p.player_id)}
-            className="bg-[#1a1d2e] border border-[#2d3148] rounded-lg p-3 text-left hover:border-[#ffcd00]/50 hover:bg-[#1a1d2e]/80 transition-all group"
+            className="text-left p-3 rounded-lg bg-white/[0.03] border border-white/5 hover:border-orange-400/30 hover:bg-white/[0.05] transition-colors"
           >
-            <div className="text-[#ffcd00] text-xs font-bold mb-1">#{p.number}</div>
-            <div className="text-white text-sm font-medium group-hover:text-[#ffcd00] transition-colors">
-              {p.name.split(' ').pop()}
-            </div>
-            <div className="text-gray-500 text-xs mt-0.5">{p.position}</div>
+            <span className="text-zinc-600 text-[11px] font-mono">#{p.number}</span>
+            <div className="text-sm text-zinc-200 font-medium mt-0.5">{p.name}</div>
+            <span className="text-[11px] text-zinc-500">{p.position}</span>
           </button>
         ))}
       </div>
     </div>
-  );
+  )
 }

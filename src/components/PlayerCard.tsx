@@ -1,74 +1,53 @@
-import type { Player, SeasonStats } from '../types';
-import { perGame, pctDisplay } from '../utils/stats';
+import type { Player, PlayerStats } from '../types'
+import { fmt, pct } from '../utils/stats'
 
 interface Props {
-  player: Player;
-  stats: SeasonStats;
+  player: Player
+  stats: PlayerStats
 }
 
 export default function PlayerCard({ player, stats }: Props) {
-  const gp = stats.gp || 1;
-
   return (
-    <div className="bg-gradient-to-br from-[#1a1d2e] to-[#141625] border border-[#2d3148] rounded-xl p-6">
-      <div className="flex items-start justify-between mb-4">
+    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5 h-full">
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <div className="text-[#ffcd00] text-sm font-semibold tracking-wider uppercase mb-1">
-            Indiana Fever
-          </div>
-          <h2 className="text-2xl font-bold text-white">{player.name}</h2>
-          <p className="text-gray-400 text-sm mt-1">
-            {player.position} • #{player.number} • {player.height}
+          <h2 className="text-lg font-semibold text-white">{player.name}</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {player.position} &middot; #{player.number} &middot; {player.height}
           </p>
         </div>
-        <div className="bg-[#ffcd00]/10 border border-[#ffcd00]/30 rounded-lg px-3 py-2 text-center">
-          <div className="text-[#ffcd00] text-2xl font-bold">#{player.number}</div>
-        </div>
+        <span className="text-2xl font-bold text-zinc-600 font-mono">#{player.number}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-        <InfoRow label="Age" value={String(player.age)} />
-        <InfoRow label="Experience" value={player.experience === 'R' ? 'Rookie' : `${player.experience} yrs`} />
-        <InfoRow label="School" value={player.school} />
-        <InfoRow label="Games" value={String(stats.gp)} />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400 mb-4">
+        <span>Age: <span className="text-zinc-200">{player.age}</span></span>
+        <span>Exp: <span className="text-zinc-200">{player.experience === 'R' ? 'Rookie' : player.experience + ' yr'}</span></span>
+        <span>School: <span className="text-zinc-200">{player.school}</span></span>
+        <span>GP: <span className="text-zinc-200">{stats.gp}</span></span>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-[#2d3148]">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-          Per Game Averages
-        </h3>
-        <div className="grid grid-cols-4 gap-2">
-          <StatBubble label="PTS" value={perGame(stats.pts, gp)} accent />
-          <StatBubble label="REB" value={perGame(stats.reb, gp)} />
-          <StatBubble label="AST" value={perGame(stats.ast, gp)} />
-          <StatBubble label="STL" value={perGame(stats.stl, gp)} />
+      <div className="border-t border-white/5 pt-3">
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <Stat label="PTS" value={fmt(stats.pts)} highlight />
+          <Stat label="REB" value={fmt(stats.reb)} />
+          <Stat label="AST" value={fmt(stats.ast)} />
+          <Stat label="STL" value={fmt(stats.stl)} />
         </div>
-        <div className="grid grid-cols-3 gap-2 mt-2">
-          <StatBubble label="FG%" value={pctDisplay(stats.fg_pct)} />
-          <StatBubble label="3P%" value={pctDisplay(stats.fg3_pct)} />
-          <StatBubble label="FT%" value={pctDisplay(stats.ft_pct)} />
+        <div className="grid grid-cols-3 gap-2 text-center mt-2">
+          <Stat label="FG%" value={pct(stats.fg_pct) + '%'} />
+          <Stat label="3P%" value={pct(stats.fg3_pct) + '%'} />
+          <Stat label="FT%" value={pct(stats.ft_pct) + '%'} />
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div>
-      <span className="text-gray-500">{label}: </span>
-      <span className="text-gray-200">{value}</span>
+    <div className="py-1">
+      <div className={`text-base font-semibold ${highlight ? 'text-orange-300' : 'text-zinc-100'}`}>{value}</div>
+      <div className="text-[10px] text-zinc-500 uppercase">{label}</div>
     </div>
-  );
-}
-
-function StatBubble({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="bg-[#0f1117] rounded-lg p-2 text-center">
-      <div className={`text-lg font-bold ${accent ? 'text-[#ffcd00]' : 'text-white'}`}>
-        {value}
-      </div>
-      <div className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</div>
-    </div>
-  );
+  )
 }

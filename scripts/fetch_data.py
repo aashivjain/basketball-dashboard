@@ -6,45 +6,41 @@ Data source: Official WNBA stats (stats.wnba.com)
 """
 
 import json
-import os
 import time
 from pathlib import Path
 
 from nba_api.stats.endpoints import (
     commonteamroster,
-    playercareerstats,
     playergamelog,
     shotchartdetail,
     leaguedashplayerstats,
 )
-from nba_api.stats.static import teams
 
 OUTPUT_DIR = Path(__file__).parent.parent / "src" / "data"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Indiana Fever team ID in the WNBA
 FEVER_TEAM_ID = 1611661325
 WNBA_LEAGUE_ID = "10"
-SEASON = "2024"
+
+# Seasons to fetch for year-over-year growth
+SEASONS = ["2024", "2025", "2026"]
+CURRENT_SEASON = "2026"
 
 
-def fetch_roster():
-    """Fetch Indiana Fever roster for the 2024 season."""
-    print("Fetching Indiana Fever roster...")
+def fetch_roster(season):
+    """Fetch Indiana Fever roster."""
+    print(f"  Fetching roster for {season}...")
     roster = commonteamroster.CommonTeamRoster(
         team_id=FEVER_TEAM_ID,
-        season=SEASON,
+        season=season,
         league_id_nullable=WNBA_LEAGUE_ID,
     )
-    time.sleep(1)  # Rate limiting
+    time.sleep(0.8)
 
-    roster_data = roster.get_normalized_dict()
-    players = roster_data["CommonTeamRoster"]
-
-    # Clean up the data
-    roster_list = []
+    players = roster.get_normalized_dict()["CommonTeamRoster"]
+    out = []
     for p in players:
-        roster_list.append({
+        out.append({
             "player_id": p["PLAYER_ID"],
             "name": p["PLAYER"],
             "number": p["NUM"],
@@ -55,27 +51,25 @@ def fetch_roster():
             "experience": p["EXP"],
             "school": p["SCHOOL"],
         })
+    return out
 
-    return roster_list
 
-
-def fetch_player_season_stats():
-    """Fetch season stats for all Indiana Fever players."""
-    print("Fetching league-wide player stats for Fever players...")
+def fetch_player_stats(season, season_type="Regular Season"):
+    """Fetch per-game stats for Fever players."""
+    print(f"  Fetching player stats ({season} - {season_type})...")
     stats = leaguedashplayerstats.LeagueDashPlayerStats(
         team_id_nullable=FEVER_TEAM_ID,
-        season=SEASON,
-        season_type_all_star="Regular Season",
+        season=season,
+        season_type_all_star=season_type,
         league_id_nullable=WNBA_LEAGUE_ID,
+        per_mode_detailed="PerGame",
     )
-    time.sleep(1)
+    time.sleep(0.8)
 
-    stats_data = stats.get_normalized_dict()
-    player_stats = stats_data["LeagueDashPlayerStats"]
-
-    cleaned = []
-    for s in player_stats:
-        cleaned.append({
+    rows = stats.get_normalized_dict()["LeagueDashPlayerStats"]
+    out = []
+    for s in rows:
+        out.append({
             "player_id": s["PLAYER_ID"],
             "name": s["PLAYER_NAME"],
             "gp": s["GP"],
@@ -100,27 +94,58 @@ def fetch_player_season_stats():
             "pf": s["PF"],
             "plus_minus": s["PLUS_MINUS"],
         })
+    return out
 
-    return cleaned
+
+def fetch_league_averages(season, season_type="Regular Season"):
+    """Fetch league-wide per-game averages for comparison."""
+    print(f"  Fetching league averages ({season} - {season_type})...")
+    stats = leaguedashplayerstats.LeagueDashPlayerStats(
+        season=season,
+        season_type_all_star=season_type,
+        league_id_nullable=WNBA_LEAGUE_ID,
+        per_mode_detailed="PerGame",
+    )
+    time.sleep(0.8)
+
+    all_players = stats.get_normalized_dict()["LeagueDashPlayerStats"]
+    # only count players with meaningful minutes
+    qualified = [p for p in all_players if p["GP"] >= 10 and p["MIN"] >= 15.0]
+
+    if not qualified:
+        qualified = [p for p in all_players if p["GP"] >= 5]
+
+    if not qualified:
+        return {}
+
+    n = len(qualified)
+    return {
+        "pts": round(sum(p["PTS"] for p in qualified) / n, 1),
+        "reb": round(sum(p["REB"] for p in qualified) / n, 1),
+        "ast": round(sum(p["AST"] for p in qualified) / n, 1),
+        "stl": round(sum(p["STL"] for p in qualified) / n, 1),
+        "blk": round(sum(p["BLK"] for p in qualified) / n, 1),
+        "fg_pct": round(sum(p["FG_PCT"] for p in qualified) / n, 3),
+        "fg3_pct": round(sum(p["FG3_PCT"] for p in qualified) / n, 3),
+        "ft_pct": round(sum(p["FT_PCT"] for p in qualified) / n, 3),
+    }
 
 
-def fetch_player_game_logs(player_id, player_name):
-    """Fetch game-by-game stats for a specific player."""
-    print(f"  Fetching game log for {player_name}...")
+def fetch_game_logs(player_id, player_name, season, season_type="Regular Season"):
+    """Fetch game-by-game stats."""
+    print(f"    {player_name} game log ({season} {season_type})...")
     gamelog = playergamelog.PlayerGameLog(
         player_id=player_id,
-        season=SEASON,
-        season_type_all_star="Regular Season",
+        season=season,
+        season_type_all_star=season_type,
         league_id_nullable=WNBA_LEAGUE_ID,
     )
-    time.sleep(1)
+    time.sleep(0.6)
 
-    log_data = gamelog.get_normalized_dict()
-    games = log_data["PlayerGameLog"]
-
-    cleaned = []
+    games = gamelog.get_normalized_dict()["PlayerGameLog"]
+    out = []
     for g in games:
-        cleaned.append({
+        out.append({
             "game_date": g["GAME_DATE"],
             "matchup": g["MATCHUP"],
             "wl": g["WL"],
@@ -142,29 +167,26 @@ def fetch_player_game_logs(player_id, player_name):
             "ft_pct": g["FT_PCT"],
             "plus_minus": g["PLUS_MINUS"],
         })
+    return out
 
-    return cleaned
 
-
-def fetch_shot_chart(player_id, player_name):
-    """Fetch shot chart data for a specific player."""
-    print(f"  Fetching shot chart for {player_name}...")
+def fetch_shot_chart(player_id, player_name, season, season_type="Regular Season"):
+    """Fetch shot chart data with x,y coordinates."""
+    print(f"    {player_name} shot chart ({season} {season_type})...")
     shots = shotchartdetail.ShotChartDetail(
         team_id=FEVER_TEAM_ID,
         player_id=player_id,
-        season_nullable=SEASON,
-        season_type_all_star="Regular Season",
+        season_nullable=season,
+        season_type_all_star=season_type,
         league_id=WNBA_LEAGUE_ID,
         context_measure_simple="FGA",
     )
-    time.sleep(1)
+    time.sleep(0.6)
 
-    shot_data = shots.get_normalized_dict()
-    shot_list = shot_data["Shot_Chart_Detail"]
-
-    cleaned = []
+    shot_list = shots.get_normalized_dict()["Shot_Chart_Detail"]
+    out = []
     for s in shot_list:
-        cleaned.append({
+        out.append({
             "game_date": s["GAME_DATE"],
             "shot_type": s["ACTION_TYPE"],
             "shot_zone": s["SHOT_ZONE_BASIC"],
@@ -176,107 +198,105 @@ def fetch_shot_chart(player_id, player_name):
             "made": s["SHOT_MADE_FLAG"] == 1,
             "quarter": s["PERIOD"],
         })
-
-    return cleaned
-
-
-def fetch_league_averages():
-    """Fetch league average stats for comparison."""
-    print("Fetching WNBA league averages...")
-    stats = leaguedashplayerstats.LeagueDashPlayerStats(
-        season=SEASON,
-        season_type_all_star="Regular Season",
-        league_id_nullable=WNBA_LEAGUE_ID,
-    )
-    time.sleep(1)
-
-    stats_data = stats.get_normalized_dict()
-    all_players = stats_data["LeagueDashPlayerStats"]
-
-    # Calculate league averages from all players who played 10+ games
-    qualified = [p for p in all_players if p["GP"] >= 10]
-
-    if not qualified:
-        return {}
-
-    n = len(qualified)
-    averages = {
-        "pts": round(sum(p["PTS"] for p in qualified) / n, 1),
-        "reb": round(sum(p["REB"] for p in qualified) / n, 1),
-        "ast": round(sum(p["AST"] for p in qualified) / n, 1),
-        "stl": round(sum(p["STL"] for p in qualified) / n, 1),
-        "blk": round(sum(p["BLK"] for p in qualified) / n, 1),
-        "fg_pct": round(sum(p["FG_PCT"] for p in qualified) / n, 3),
-        "fg3_pct": round(sum(p["FG3_PCT"] for p in qualified) / n, 3),
-        "ft_pct": round(sum(p["FT_PCT"] for p in qualified) / n, 3),
-    }
-
-    return averages
+    return out
 
 
-def main():
-    print("=" * 50)
-    print("WNBA Data Fetcher - Indiana Fever 2024")
-    print("=" * 50)
-    print()
+def fetch_season_data(season):
+    """Fetch all data for one season (regular + playoffs)."""
+    print(f"\n{'='*40}")
+    print(f"Season: {season}")
+    print(f"{'='*40}")
 
-    # 1. Fetch roster
-    roster = fetch_roster()
-    print(f"  Found {len(roster)} players")
-    print()
+    roster = fetch_roster(season)
+    print(f"  Roster: {len(roster)} players")
 
-    # 2. Fetch season stats
-    season_stats = fetch_player_season_stats()
-    print(f"  Found stats for {len(season_stats)} players")
-    print()
+    # Regular season
+    reg_stats = fetch_player_stats(season, "Regular Season")
+    reg_league_avg = fetch_league_averages(season, "Regular Season")
 
-    # 3. Fetch league averages
-    league_avg = fetch_league_averages()
-    print(f"  League averages computed")
-    print()
+    # Playoffs
+    playoff_stats = fetch_player_stats(season, "Playoffs")
+    playoff_league_avg = fetch_league_averages(season, "Playoffs")
 
-    # 4. Fetch game logs and shot charts for each player
+    # Per-player detailed data
     game_logs = {}
     shot_charts = {}
+    playoff_game_logs = {}
+    playoff_shot_charts = {}
 
     for player in roster:
         pid = player["player_id"]
-        pname = player["name"]
+        name = player["name"]
 
+        # Regular season logs + shots
         try:
-            game_logs[str(pid)] = fetch_player_game_logs(pid, pname)
+            game_logs[str(pid)] = fetch_game_logs(pid, name, season, "Regular Season")
         except Exception as e:
-            print(f"  WARNING: Could not fetch game log for {pname}: {e}")
+            print(f"    WARN: {name} game log failed: {e}")
             game_logs[str(pid)] = []
 
         try:
-            shot_charts[str(pid)] = fetch_shot_chart(pid, pname)
+            shot_charts[str(pid)] = fetch_shot_chart(pid, name, season, "Regular Season")
         except Exception as e:
-            print(f"  WARNING: Could not fetch shot chart for {pname}: {e}")
+            print(f"    WARN: {name} shot chart failed: {e}")
             shot_charts[str(pid)] = []
 
-    # 5. Save all data
-    output = {
+        # Playoff logs + shots
+        try:
+            playoff_game_logs[str(pid)] = fetch_game_logs(pid, name, season, "Playoffs")
+        except Exception as e:
+            playoff_game_logs[str(pid)] = []
+
+        try:
+            playoff_shot_charts[str(pid)] = fetch_shot_chart(pid, name, season, "Playoffs")
+        except Exception as e:
+            playoff_shot_charts[str(pid)] = []
+
+    return {
+        "roster": roster,
+        "regular_season": {
+            "stats": reg_stats,
+            "league_averages": reg_league_avg,
+            "game_logs": game_logs,
+            "shot_charts": shot_charts,
+        },
+        "playoffs": {
+            "stats": playoff_stats,
+            "league_averages": playoff_league_avg,
+            "game_logs": playoff_game_logs,
+            "shot_charts": playoff_shot_charts,
+        },
+    }
+
+
+def main():
+    print("WNBA Data Fetcher - Indiana Fever")
+    print(f"Seasons: {', '.join(SEASONS)}")
+    print()
+
+    all_data = {
         "team": {
             "id": FEVER_TEAM_ID,
             "name": "Indiana Fever",
             "abbreviation": "IND",
-            "season": SEASON,
+            "current_season": CURRENT_SEASON,
         },
-        "roster": roster,
-        "season_stats": season_stats,
-        "league_averages": league_avg,
-        "game_logs": game_logs,
-        "shot_charts": shot_charts,
+        "seasons": {},
     }
+
+    for season in SEASONS:
+        try:
+            all_data["seasons"][season] = fetch_season_data(season)
+        except Exception as e:
+            print(f"\n  ERROR fetching {season}: {e}")
+            all_data["seasons"][season] = None
 
     output_file = OUTPUT_DIR / "fever_data.json"
     with open(output_file, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(all_data, f, indent=2)
 
-    print()
-    print(f"Data saved to {output_file}")
-    print(f"Total file size: {output_file.stat().st_size / 1024:.1f} KB")
+    print(f"\nDone. Saved to {output_file}")
+    print(f"File size: {output_file.stat().st_size / 1024:.1f} KB")
 
 
 if __name__ == "__main__":

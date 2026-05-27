@@ -1,59 +1,52 @@
 # Indiana Fever Analytics Dashboard
 
-An interactive analytics dashboard for the 2024 Indiana Fever (WNBA) season. Visualizes real player statistics, shot charts, and performance trends using data from the official WNBA stats API.
+Interactive analytics dashboard for the Indiana Fever (WNBA). Covers the 2024, 2025, and 2026 seasons with both regular season and playoff data. All statistics are real, sourced from the official WNBA stats API.
 
 ## Features
 
-- **Player Profiles** — Select any player from the Indiana Fever roster to view their season stats, bio, and per-game averages
-- **Shot Chart** — Interactive half-court visualization showing every field goal attempt with made/missed filtering and hover details
-- **Stats Radar** — Radar chart comparing a player's per-game stats against WNBA league averages
-- **Performance Trends** — Game-by-game line charts for points, rebounds, assists, steals, and FG%
-- **Shooting Zones** — Horizontal bar chart breaking down FG% by court zone with color-coded efficiency
-- **Game Log** — Sortable game-by-game stat table with win/loss indicators
+- **Multi-season support** — Toggle between 2024, 2025, and 2026 seasons
+- **Regular season & playoffs** — Switch between regular season and postseason data
+- **Player profiles** — Per-game averages, bio, shooting splits
+- **Shot chart** — Interactive half-court SVG with every FGA plotted (filterable, hover details)
+- **Radar chart** — Per-game stats vs WNBA league average (proper per-game comparison)
+- **Player comparison** — Head-to-head stat comparison between any two teammates
+- **Year-over-year growth** — Track a player's development across multiple seasons
+- **Performance trends** — Game-by-game line charts (PTS, REB, AST, FG%)
+- **Shooting zones** — FG% breakdown by court area with color-coded efficiency
+- **Game log** — Full season table with W/L, +/-, shooting splits
 
 ## Tech Stack
 
 - React 18 + TypeScript
-- Vite (build tool)
-- Tailwind CSS (styling)
-- Recharts (charts/graphs)
-- Custom SVG (shot chart court)
+- Vite
+- Tailwind CSS
+- Recharts + custom SVG
 
 ## Data
 
-All data is **real** — sourced from the official WNBA stats API via the `nba_api` Python package. The data was fetched using the scripts in `/scripts` and stored as a JSON file.
+All data is real — pulled from stats.wnba.com via the `nba_api` Python package. The fetch script pulls per-game stats (not totals), so all comparisons are apples-to-apples.
 
-**Data source:** stats.wnba.com (2024 Regular Season)
+Covers: Indiana Fever, 2024-2026, regular season + playoffs.
 
 ## Getting Started
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
-
-# Build for production
-npm run build
 ```
 
 ## Refreshing Data
-
-To re-fetch the latest data from the WNBA API:
 
 ```bash
 pip install nba_api pandas
 python scripts/fetch_data.py
 ```
 
-This will update `src/data/fever_data.json` with the latest stats.
-
-## Project Structure
+## Structure
 
 ```
 src/
-├── components/       # React UI components
+├── components/
 │   ├── Dashboard.tsx
 │   ├── PlayerSelector.tsx
 │   ├── PlayerCard.tsx
@@ -61,12 +54,14 @@ src/
 │   ├── StatsRadar.tsx
 │   ├── PerformanceTrend.tsx
 │   ├── GameLogTable.tsx
-│   └── ShotZoneBreakdown.tsx
-├── data/             # Real WNBA JSON data
-├── types/            # TypeScript interfaces
-├── utils/            # Helper functions
+│   ├── ShotZoneBreakdown.tsx
+│   ├── PlayerComparison.tsx
+│   └── GrowthChart.tsx
+├── data/
+├── types/
+├── utils/
 ├── App.tsx
 └── main.tsx
 scripts/
-└── fetch_data.py     # Python data fetcher
+└── fetch_data.py
 ```

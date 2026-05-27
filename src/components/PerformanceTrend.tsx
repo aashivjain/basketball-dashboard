@@ -1,132 +1,89 @@
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
-import { useState } from 'react';
-import type { GameLog } from '../types';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { useState } from 'react'
+import type { GameLog } from '../types'
 
 interface Props {
-  games: GameLog[];
-  playerName: string;
+  games: GameLog[]
 }
 
-type StatKey = 'pts' | 'reb' | 'ast' | 'stl' | 'fg_pct';
+const METRICS = [
+  { key: 'pts', label: 'PTS', color: '#f97316' },
+  { key: 'reb', label: 'REB', color: '#4ade80' },
+  { key: 'ast', label: 'AST', color: '#38bdf8' },
+  { key: 'fg_pct', label: 'FG%', color: '#c084fc' },
+] as const
 
-const STAT_OPTIONS: { key: StatKey; label: string; color: string }[] = [
-  { key: 'pts', label: 'Points', color: '#ffcd00' },
-  { key: 'reb', label: 'Rebounds', color: '#22c55e' },
-  { key: 'ast', label: 'Assists', color: '#3b82f6' },
-  { key: 'stl', label: 'Steals', color: '#a855f7' },
-  { key: 'fg_pct', label: 'FG%', color: '#f97316' },
-];
+type MetricKey = (typeof METRICS)[number]['key']
 
 export default function PerformanceTrend({ games }: Props) {
-  const [activeStat, setActiveStat] = useState<StatKey>('pts');
+  const [metric, setMetric] = useState<MetricKey>('pts')
+  const active = METRICS.find(m => m.key === metric)!
 
-  // Reverse so chronological order (API returns most recent first)
-  const chartData = [...games].reverse().map((g, idx) => ({
-    game: idx + 1,
-    label: g.matchup.split(' ').pop() || '',
+  const chartData = [...games].reverse().map((g, i) => ({
+    idx: i + 1,
+    opp: g.matchup.split(' ').pop() ?? '',
     date: g.game_date,
     wl: g.wl,
     pts: g.pts,
     reb: g.reb,
     ast: g.ast,
-    stl: g.stl,
     fg_pct: g.fg_pct,
-  }));
+  }))
 
-  const activeOption = STAT_OPTIONS.find((s) => s.key === activeStat)!;
-  const values = chartData.map((d) => d[activeStat] as number);
-  const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  const vals = chartData.map(d => d[metric] as number)
+  const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
 
   return (
-    <div className="bg-gradient-to-br from-[#1a1d2e] to-[#141625] border border-[#2d3148] rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-bold text-white">Performance Trend</h3>
-          <p className="text-xs text-gray-500">Game-by-game breakdown</p>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {STAT_OPTIONS.map((opt) => (
+    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-zinc-200">Game-by-Game</h3>
+        <div className="flex gap-1">
+          {METRICS.map(m => (
             <button
-              key={opt.key}
-              onClick={() => setActiveStat(opt.key)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                activeStat === opt.key
-                  ? 'text-[#041e42]'
-                  : 'bg-[#0f1117] text-gray-400 hover:text-white'
-              }`}
-              style={activeStat === opt.key ? { backgroundColor: opt.color } : {}}
+              key={m.key}
+              onClick={() => setMetric(m.key)}
+              className={`px-2 py-0.5 rounded text-[11px] ${metric === m.key ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              style={metric === m.key ? { background: m.color + '22', color: m.color } : {}}
             >
-              {opt.label}
+              {m.label}
             </button>
           ))}
         </div>
       </div>
 
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2235" />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: '#64748b', fontSize: 10 }}
-            axisLine={{ stroke: '#2d3148' }}
-            tickLine={false}
-          />
+        <LineChart data={chartData} margin={{ top: 5, right: 8, left: -15, bottom: 5 }}>
+          <XAxis dataKey="opp" tick={{ fill: '#52525b', fontSize: 9 }} axisLine={false} tickLine={false} />
           <YAxis
-            tick={{ fill: '#64748b', fontSize: 10 }}
-            axisLine={{ stroke: '#2d3148' }}
+            tick={{ fill: '#52525b', fontSize: 9 }}
+            axisLine={false}
             tickLine={false}
-            domain={activeStat === 'fg_pct' ? [0, 1] : undefined}
-            tickFormatter={activeStat === 'fg_pct' ? (v: number) => `${(v * 100).toFixed(0)}%` : undefined}
+            domain={metric === 'fg_pct' ? [0, 1] : undefined}
+            tickFormatter={metric === 'fg_pct' ? (v: number) => `${(v * 100).toFixed(0)}%` : undefined}
           />
-          <ReferenceLine
-            y={avg}
-            stroke={activeOption.color}
-            strokeDasharray="4 4"
-            strokeOpacity={0.5}
-          />
+          <ReferenceLine y={avg} stroke={active.color} strokeDasharray="3 3" strokeOpacity={0.4} />
           <Tooltip
-            contentStyle={{
-              background: '#0f1117',
-              border: '1px solid #2d3148',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
+            contentStyle={{ background: '#1c1c1c', border: '1px solid #333', borderRadius: '6px', fontSize: '11px' }}
             labelFormatter={(_, payload) => {
-              if (payload && payload[0]) {
-                const d = payload[0].payload;
-                return `${d.date} (${d.wl === 'W' ? 'Win' : 'Loss'})`;
+              if (payload?.[0]) {
+                const d = payload[0].payload as Record<string, string>
+                return `${d.date} (${d.wl === 'W' ? 'Win' : 'Loss'})`
               }
-              return '';
+              return ''
             }}
             formatter={(value) => {
-              const v = Number(value);
-              if (activeStat === 'fg_pct') return [`${(v * 100).toFixed(1)}%`, activeOption.label];
-              return [v, activeOption.label];
+              const v = Number(value)
+              if (metric === 'fg_pct') return [`${(v * 100).toFixed(1)}%`, active.label]
+              return [v, active.label]
             }}
           />
-          <Line
-            type="monotone"
-            dataKey={activeStat}
-            stroke={activeOption.color}
-            strokeWidth={2}
-            dot={{ r: 3, fill: activeOption.color }}
-            activeDot={{ r: 5, stroke: '#fff', strokeWidth: 2 }}
-          />
+          <Line type="monotone" dataKey={metric} stroke={active.color} strokeWidth={1.5} dot={{ r: 2.5, fill: active.color }} activeDot={{ r: 4 }} />
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-2 text-center text-xs text-gray-500">
-        Season Average: {activeStat === 'fg_pct' ? `${(avg * 100).toFixed(1)}%` : avg.toFixed(1)} {activeOption.label}
-      </div>
+      <p className="text-center text-[11px] text-zinc-500 mt-1">
+        Avg: {metric === 'fg_pct' ? `${(avg * 100).toFixed(1)}%` : avg.toFixed(1)} {active.label}
+      </p>
     </div>
-  );
+  )
 }

@@ -1,75 +1,43 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import type { Shot } from '../types';
-import { getShotEfficiency } from '../utils/stats';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import type { Shot } from '../types'
+import { shotZoneAgg } from '../utils/stats'
 
 interface Props {
-  shots: Shot[];
+  shots: Shot[]
 }
 
 export default function ShotZoneBreakdown({ shots }: Props) {
-  const zoneData = getShotEfficiency(shots);
+  const zones = shotZoneAgg(shots).sort((a, b) => b.total - a.total)
 
-  // Sort by total attempts descending
-  const sorted = [...zoneData].sort((a, b) => b.total - a.total);
-
-  const getBarColor = (pct: number) => {
-    if (pct >= 0.5) return '#22c55e';
-    if (pct >= 0.4) return '#84cc16';
-    if (pct >= 0.33) return '#eab308';
-    if (pct >= 0.25) return '#f97316';
-    return '#ef4444';
-  };
+  const color = (p: number) => {
+    if (p >= 0.5) return '#4ade80'
+    if (p >= 0.4) return '#a3e635'
+    if (p >= 0.33) return '#facc15'
+    if (p >= 0.25) return '#fb923c'
+    return '#f87171'
+  }
 
   return (
-    <div className="bg-gradient-to-br from-[#1a1d2e] to-[#141625] border border-[#2d3148] rounded-xl p-6">
-      <h3 className="text-lg font-bold text-white mb-1">Shooting by Zone</h3>
-      <p className="text-xs text-gray-500 mb-4">Field goal percentage by court area</p>
+    <div className="bg-white/[0.03] border border-white/5 rounded-lg p-5 h-full">
+      <h3 className="text-sm font-medium text-zinc-200 mb-1">Shooting by Zone</h3>
+      <p className="text-[11px] text-zinc-500 mb-3">FG% by court area</p>
 
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={sorted} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2235" horizontal={false} />
-          <XAxis
-            type="number"
-            domain={[0, 1]}
-            tick={{ fill: '#64748b', fontSize: 10 }}
-            tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-            axisLine={{ stroke: '#2d3148' }}
-          />
-          <YAxis
-            type="category"
-            dataKey="zone"
-            tick={{ fill: '#94a3b8', fontSize: 10 }}
-            width={110}
-            axisLine={{ stroke: '#2d3148' }}
-          />
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={zones} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+          <XAxis type="number" domain={[0, 1]} tick={{ fill: '#71717a', fontSize: 10 }} tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} axisLine={false} />
+          <YAxis type="category" dataKey="zone" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={100} axisLine={false} tickLine={false} />
           <Tooltip
-            contentStyle={{
-              background: '#0f1117',
-              border: '1px solid #2d3148',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
+            contentStyle={{ background: '#1c1c1c', border: '1px solid #333', borderRadius: '6px', fontSize: '11px' }}
             formatter={(value, _name, props) => {
-              const p = (props as unknown as { payload: { made: number; total: number } }).payload;
-              return [`${(Number(value) * 100).toFixed(1)}% (${p.made}/${p.total})`, 'FG%'];
+              const p = (props as unknown as { payload: { made: number; total: number } }).payload
+              return [`${(Number(value) * 100).toFixed(1)}% (${p.made}/${p.total})`, 'FG%']
             }}
           />
-          <Bar dataKey="pct" radius={[0, 4, 4, 0]}>
-            {sorted.map((entry, index) => (
-              <Cell key={index} fill={getBarColor(entry.pct)} />
-            ))}
+          <Bar dataKey="pct" radius={[0, 3, 3, 0]}>
+            {zones.map((z, i) => <Cell key={i} fill={color(z.pct)} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-
-      {/* Color legend */}
-      <div className="flex flex-wrap items-center justify-center gap-3 mt-3 text-[10px] text-gray-500">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />50%+</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-lime-500" />40-50%</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" />33-40%</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" />25-33%</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />&lt;25%</span>
-      </div>
     </div>
-  );
+  )
 }
