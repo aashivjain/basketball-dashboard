@@ -80,10 +80,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen transition-colors duration-500" style={{ background: teamColor ? teamColor.bg : '#fafafa' }}>
-      {/* fluid header - no hard border, just a gentle fade */}
-      <header className="sticky top-0 z-40 backdrop-blur-md" style={{ background: teamColor ? `${teamColor.bg}ee` : 'rgba(250,250,250,0.92)' }}>
+      {/* Standard neutral header */}
+      <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/60" style={{ background: 'rgba(255,255,255,0.95)' }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-5 flex-wrap">
-          <h1 className="text-lg tracking-tight mr-auto" style={{ fontFamily: "'Georgia', serif", color: teamColor ? teamColor.primary : '#1e293b' }}>
+          <h1 className="text-lg tracking-tight mr-auto" style={{ fontFamily: "'Georgia', serif", color: '#1e293b' }}>
             WNBA Analytics
           </h1>
 
@@ -91,13 +91,13 @@ export default function Dashboard() {
             <button
               onClick={() => setTab('overview')}
               className="transition-all"
-              style={{ color: tab === 'overview' ? (teamColor?.primary ?? '#0d9488') : '#94a3b8', fontWeight: tab === 'overview' ? 600 : 400 }}
+              style={{ color: tab === 'overview' ? '#1e293b' : '#94a3b8', fontWeight: tab === 'overview' ? 600 : 400 }}
             >Overview</button>
             <span className="text-slate-300">|</span>
             <button
               onClick={() => setTab('compare')}
               className="transition-all"
-              style={{ color: tab === 'compare' ? (teamColor?.primary ?? '#0d9488') : '#94a3b8', fontWeight: tab === 'compare' ? 600 : 400 }}
+              style={{ color: tab === 'compare' ? '#1e293b' : '#94a3b8', fontWeight: tab === 'compare' ? 600 : 400 }}
             >Compare</button>
           </nav>
 
@@ -108,7 +108,7 @@ export default function Dashboard() {
                 onClick={() => setSeason(yr)}
                 className="transition-all px-2 py-0.5 rounded-full"
                 style={{
-                  background: season === yr ? (teamColor?.primary ?? '#334155') : 'transparent',
+                  background: season === yr ? '#1e293b' : 'transparent',
                   color: season === yr ? '#fff' : '#94a3b8',
                   fontSize: '13px',
                 }}
@@ -122,7 +122,7 @@ export default function Dashboard() {
                 key={st}
                 onClick={() => setSeasonType(st)}
                 className="transition-all"
-                style={{ color: seasonType === st ? (teamColor?.primary ?? '#334155') : '#94a3b8', fontWeight: seasonType === st ? 600 : 400, fontSize: '13px' }}
+                style={{ color: seasonType === st ? '#1e293b' : '#94a3b8', fontWeight: seasonType === st ? 600 : 400, fontSize: '13px' }}
               >{st === 'regular_season' ? 'Regular' : 'Playoffs'}</button>
             ))}
           </div>
@@ -130,8 +130,8 @@ export default function Dashboard() {
           <select
             value={playerId ?? ''}
             onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
-            className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all"
-            style={{ border: `1.5px solid ${teamColor?.primary ?? '#cbd5e1'}`, background: 'white', color: '#334155' }}
+            className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all text-center appearance-none"
+            style={{ border: '1.5px solid #cbd5e1', background: 'white', color: '#334155', minWidth: '160px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
           >
             <option value="" disabled>Choose player</option>
             {playersByTeam.map(([team, players]) => (
@@ -177,40 +177,44 @@ export default function Dashboard() {
               <PerformanceTrend games={games} teamColor={teamColor!} />
             )}
 
-            {/* compare */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <button
-                onClick={() => setShowCompare(!showCompare)}
-                className="text-sm px-4 py-2 rounded-full transition-all"
-                style={{ border: `1.5px solid ${teamColor?.primary ?? '#cbd5e1'}`, color: teamColor?.primary ?? '#334155', background: 'white' }}
-              >{showCompare ? 'Hide comparison' : 'Compare with another player'}</button>
-              {showCompare && (
-                <select
-                  value={compareId ?? ''}
-                  onChange={e => setCompareId(Number(e.target.value))}
-                  className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none border border-slate-300 bg-white"
-                >
-                  <option value="" disabled>Pick any WNBA player</option>
-                  {playersByTeam.map(([team, players]) => (
-                    <optgroup key={team} label={team}>
-                      {players.filter(p => p.player_id !== playerId).map(p => (
-                        <option key={p.player_id} value={p.player_id}>{p.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {showCompare && comparePlayer && player && (
-              <PlayerComparison playerA={player} playerB={comparePlayer} nameA={player.name} nameB={comparePlayer.name} teamColorA={teamColor!} teamColorB={getTeamColors(comparePlayer.team)} />
-            )}
-
             {growthData.length > 1 && (
               <GrowthChart data={growthData} playerName={player.name} teamColor={teamColor!} />
             )}
 
             {games.length > 0 && <GameLogTable games={games} teamColor={teamColor!} />}
+
+            {/* Compare section at end of profile */}
+            <div className="pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-4 flex-wrap">
+                <button
+                  onClick={() => setShowCompare(!showCompare)}
+                  className="text-sm px-5 py-2.5 rounded-full transition-all font-medium"
+                  style={{ border: `1.5px solid ${teamColor?.primary ?? '#cbd5e1'}`, color: teamColor?.primary ?? '#334155', background: showCompare ? `${teamColor?.primary}10` : 'white' }}
+                >{showCompare ? 'Hide comparison' : `Compare ${player.name.split(' ').pop()} with another player`}</button>
+                {showCompare && (
+                  <select
+                    value={compareId ?? ''}
+                    onChange={e => setCompareId(Number(e.target.value))}
+                    className="rounded-full px-4 py-2 text-sm cursor-pointer focus:outline-none border border-slate-200 bg-white text-slate-700"
+                  >
+                    <option value="" disabled>Pick any WNBA player</option>
+                    {playersByTeam.map(([team, players]) => (
+                      <optgroup key={team} label={team}>
+                        {players.filter(p => p.player_id !== playerId).map(p => (
+                          <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {showCompare && comparePlayer && player && (
+                <div className="mt-6">
+                  <PlayerComparison playerA={player} playerB={comparePlayer} nameA={player.name} nameB={comparePlayer.name} teamColorA={teamColor!} teamColorB={getTeamColors(comparePlayer.team)} />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>

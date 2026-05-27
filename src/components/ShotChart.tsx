@@ -8,7 +8,7 @@ interface Props {
 
 type ViewMode = 'dots' | 'zones'
 
-// Zone definitions for bucketing shots
+// Zone definitions matching NBA/WNBA standard zones
 const ZONE_DEFS = [
   { name: 'Restricted Area', test: (s: Shot) => s.shot_zone === 'Restricted Area' },
   { name: 'Paint (Non-RA)', test: (s: Shot) => s.shot_zone === 'In The Paint (Non-RA)' },
@@ -19,12 +19,35 @@ const ZONE_DEFS = [
   { name: 'Backcourt', test: (s: Shot) => s.shot_zone === 'Backcourt' },
 ]
 
+// SVG paths for each zone polygon (viewBox 0 0 500 470)
+// Court: outer rect (20,20)-(480,450), basket at (250,60)
+// 3pt arc: center≈(250,59) r=238, straight portions x=30 and x=470 from y=43 to y=150
+// Paint: (170,20)-(330,210), Restricted: semicircle r=40 at (250,43)
+const ZONE_PATHS: Record<string, string> = {
+  'Restricted Area': 'M 210 20 L 210 43 A 40 40 0 0 1 290 43 L 290 20 Z',
+  'Paint (Non-RA)': 'M 170 20 L 170 210 L 330 210 L 330 20 Z',
+  'Mid-Range': 'M 30 20 L 30 150 A 238 238 0 0 0 470 150 L 470 20 Z',
+  'Left Corner 3': 'M 20 20 L 30 20 L 30 150 L 20 150 Z',
+  'Right Corner 3': 'M 470 20 L 480 20 L 480 150 L 470 150 Z',
+  'Above Break 3': 'M 30 150 A 238 238 0 0 0 470 150 L 480 150 L 480 450 L 20 450 L 20 150 Z',
+}
+
+// Zone label positions (hand-tuned for readability)
+const ZONE_LABEL_POS: Record<string, { x: number; y: number }> = {
+  'Restricted Area': { x: 250, y: 62 },
+  'Paint (Non-RA)': { x: 250, y: 155 },
+  'Mid-Range': { x: 250, y: 280 },
+  'Left Corner 3': { x: 25, y: 90 },
+  'Right Corner 3': { x: 475, y: 90 },
+  'Above Break 3': { x: 250, y: 390 },
+}
+
 function getZoneColor(pct: number): string {
-  if (pct >= 55) return '#15803d'  // dark green
-  if (pct >= 45) return '#22c55e'  // green
-  if (pct >= 35) return '#86efac'  // light green
-  if (pct >= 25) return '#fbbf24'  // amber
-  return '#ef4444'                  // red
+  if (pct >= 55) return '#15803d'
+  if (pct >= 45) return '#22c55e'
+  if (pct >= 35) return '#86efac'
+  if (pct >= 25) return '#fbbf24'
+  return '#ef4444'
 }
 
 export default function ShotChart({ shots, teamColor }: Props) {
@@ -42,7 +65,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const missed = shots.filter(s => !s.made)
   const fgPct = shots.length > 0 ? ((made.length / shots.length) * 100).toFixed(1) : '0'
 
-  // Compute zone stats for heatmap mode
+  // Compute zone stats
   const zoneStats = ZONE_DEFS.map(z => {
     const zoneShots = shots.filter(z.test)
     const zoneMade = zoneShots.filter(s => s.made)
@@ -51,16 +74,17 @@ export default function ShotChart({ shots, teamColor }: Props) {
       made: zoneMade.length,
       total: zoneShots.length,
       pct: zoneShots.length > 0 ? (zoneMade.length / zoneShots.length) * 100 : 0,
-      shots: zoneShots,
     }
   }).filter(z => z.total > 0)
+
+  // Draw order: back to front so smaller zones overlay larger ones
+  const drawOrder = ['Above Break 3', 'Left Corner 3', 'Right Corner 3', 'Mid-Range', 'Paint (Non-RA)', 'Restricted Area']
 
   return (
     <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-slate-600">Shot Chart</h3>
         <div className="flex items-center gap-3">
-          {/* Toggle */}
           <div className="flex rounded-full overflow-hidden border border-slate-200 text-[11px]">
             <button
               onClick={() => setMode('dots')}
@@ -94,7 +118,6 @@ export default function ShotChart({ shots, teamColor }: Props) {
       )}
 
       <svg viewBox="0 0 500 470" className="w-full overflow-hidden rounded-xl">
-        {/* wooden court background */}
         <defs>
           <pattern id="wood-grain" patternUnits="userSpaceOnUse" width="200" height="200">
             <rect width="200" height="200" fill="#c9a66b" />
@@ -120,8 +143,30 @@ export default function ShotChart({ shots, teamColor }: Props) {
         <rect width="500" height="470" fill="url(#planks)" rx="12" />
         <rect width="500" height="470" fill="#d4a76a" opacity="0.08" rx="12" />
 
+        {mode === 'zones' && (
+          <>
+            {/* Shaded zone polygons */}
+            {drawOrder.map(zoneName => {
+              const stat = zoneStats.find(z => z.name === zoneName)
+              const path = ZONE_PATHS[zoneName]
+              if (!stat || !path) return null
+              const color = getZoneColor(stat.pct)
+              return (
+                <path
+                  key={zoneName}
+                  d={path}
+                  fill={color}
+                  opacity="0.6"
+                  stroke="rgba(255,255,255,0.6)"
+                  strokeWidth="1.5"
+                />
+              )
+            })}
+          </>
+        )}
+
         {/* court lines */}
-        <g stroke="#fff" strokeWidth="1.5" fill="none" opacity="0.75">
+        <g stroke="#fff" strokeWidth="1.5" fill="none" opacity={mode === 'zones' ? 0.9 : 0.75}>
           <rect x="20" y="20" width="460" height="430" rx="2" />
           <rect x="170" y="20" width="160" height="190" />
           <circle cx="250" cy="210" r="60" />
@@ -143,23 +188,26 @@ export default function ShotChart({ shots, teamColor }: Props) {
           </>
         ) : (
           <>
-            {/* Zone heatmap - colored dots with zone-based color */}
+            {/* Zone labels */}
             {zoneStats.map(z => {
-              const color = getZoneColor(z.pct)
-              return z.shots.map((s, i) => (
-                <circle key={`z${z.name}${i}`} cx={250 + s.x} cy={43 + s.y} r="5" fill={color} opacity="0.6" />
-              ))
-            })}
-            {/* Zone labels on court */}
-            {zoneStats.map(z => {
-              // Compute centroid of zone shots
-              const cx = z.shots.reduce((s, sh) => s + (250 + sh.x), 0) / z.shots.length
-              const cy = z.shots.reduce((s, sh) => s + (43 + sh.y), 0) / z.shots.length
+              const pos = ZONE_LABEL_POS[z.name]
+              if (!pos) return null
+              const isSmall = z.name === 'Left Corner 3' || z.name === 'Right Corner 3'
               return (
                 <g key={z.name}>
-                  <rect x={cx - 28} y={cy - 12} width="56" height="24" rx="4" fill="rgba(0,0,0,0.7)" />
-                  <text x={cx} y={cy + 4} textAnchor="middle" fill="#fff" fontSize="10" fontWeight="600">
-                    {z.pct.toFixed(0)}% ({z.total})
+                  <rect
+                    x={pos.x - (isSmall ? 20 : 30)}
+                    y={pos.y - 14}
+                    width={isSmall ? 40 : 60}
+                    height="28"
+                    rx="4"
+                    fill="rgba(0,0,0,0.75)"
+                  />
+                  <text x={pos.x} y={pos.y} textAnchor="middle" fill="#fff" fontSize={isSmall ? '9' : '11'} fontWeight="700">
+                    {z.pct.toFixed(0)}%
+                  </text>
+                  <text x={pos.x} y={pos.y + 11} textAnchor="middle" fill="rgba(255,255,255,0.7)" fontSize="8">
+                    {z.made}/{z.total}
                   </text>
                 </g>
               )
