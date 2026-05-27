@@ -1,0 +1,2 @@
+This directory holds the generated data file (fever_data.json).
+Run `python scripts/fetch_all.py` to populate it.

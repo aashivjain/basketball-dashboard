@@ -29,3 +29,6 @@ __pycache__
 .venv
 venv
 .env
+
+# Data (re-fetch via scripts)
+src/data/fever_data.json

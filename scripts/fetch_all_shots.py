@@ -1,9 +1,12 @@
 """
-Fetch shot chart data for all 2026 WNBA players.
-Adds shot_charts to the all_players data for the 2026 regular season.
+Fetch shot chart data for all WNBA players across all seasons.
+Adds shot_charts keyed by player_id to each season's regular_season block.
+Usage: python fetch_all_shots.py [season]
+  If season is omitted, fetches for all available seasons.
 """
 
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -11,16 +14,15 @@ from nba_api.stats.endpoints import shotchartdetail
 
 DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "fever_data.json"
 WNBA_LEAGUE_ID = "10"
-SEASON = "2026"
 
 
-def fetch_shot_chart(player_id, player_name, team_id=0):
+def fetch_shot_chart(player_id, player_name, season, team_id=0):
     for attempt in range(3):
         try:
             shots = shotchartdetail.ShotChartDetail(
                 team_id=team_id,
                 player_id=player_id,
-                season_nullable=SEASON,
+                season_nullable=season,
                 season_type_all_star="Regular Season",
                 league_id=WNBA_LEAGUE_ID,
                 context_measure_simple="FGA",
@@ -48,20 +50,19 @@ def fetch_shot_chart(player_id, player_name, team_id=0):
                 raise
 
 
-def main():
-    print("Fetching shot charts for all 2026 WNBA players...")
-    with open(DATA_FILE) as f:
-        data = json.load(f)
-
-    season_data = data["seasons"]["2026"]
+def fetch_season(data, season):
+    season_data = data["seasons"].get(season)
     if not season_data:
-        print("No 2026 season data found")
+        print(f"  No {season} season data found, skipping")
         return
 
-    all_players = season_data["regular_season"]["all_players"]
-    print(f"  {len(all_players)} players to fetch")
+    all_players = season_data["regular_season"].get("all_players", [])
+    if not all_players:
+        print(f"  No players in {season}, skipping")
+        return
 
-    # store shot charts keyed by player_id
+    print(f"\n  === {season} Regular Season: {len(all_players)} players ===")
+
     all_shot_charts = season_data["regular_season"].get("shot_charts", {})
 
     fetched = 0
@@ -69,37 +70,43 @@ def main():
     for i, p in enumerate(all_players):
         pid = str(p["player_id"])
         if pid in all_shot_charts and len(all_shot_charts[pid]) > 0:
-            continue  # already have data
+            continue
 
         try:
-            charts = fetch_shot_chart(p["player_id"], p["name"])
+            charts = fetch_shot_chart(p["player_id"], p["name"], season)
             all_shot_charts[pid] = charts
             fetched += 1
-            if charts:
-                print(f"  [{i+1}/{len(all_players)}] {p['name']}: {len(charts)} shots")
-            else:
-                print(f"  [{i+1}/{len(all_players)}] {p['name']}: 0 shots")
+            print(f"  [{i+1}/{len(all_players)}] {p['name']}: {len(charts)} shots")
         except Exception as e:
             print(f"  [{i+1}/{len(all_players)}] {p['name']}: ERROR - {e}")
             all_shot_charts[pid] = []
             errors += 1
 
-        # save every 20 players
         if fetched > 0 and fetched % 20 == 0:
             season_data["regular_season"]["shot_charts"] = all_shot_charts
-            data["seasons"]["2026"] = season_data
             with open(DATA_FILE, "w") as f:
-                json.dump(data, f, indent=2)
+                json.dump(data, f)
             print(f"    [saved progress: {fetched} fetched]")
 
     season_data["regular_season"]["shot_charts"] = all_shot_charts
-    data["seasons"]["2026"] = season_data
-
     with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f)
 
-    print(f"\nDone. Fetched {fetched} new, {errors} errors.")
-    print(f"File size: {DATA_FILE.stat().st_size / 1024:.1f} KB")
+    print(f"  Done {season}: {fetched} new, {errors} errors.")
+
+
+def main():
+    with open(DATA_FILE) as f:
+        data = json.load(f)
+
+    seasons = sys.argv[1:] if len(sys.argv) > 1 else sorted(data["seasons"].keys())
+    print(f"Fetching shot charts for seasons: {', '.join(seasons)}")
+
+    for season in seasons:
+        fetch_season(data, season)
+
+    size_kb = DATA_FILE.stat().st_size / 1024
+    print(f"\nAll done. File size: {size_kb:.1f} KB")
 
 
 if __name__ == "__main__":
