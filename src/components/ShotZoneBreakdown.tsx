@@ -103,7 +103,7 @@ export default function ShotZoneBreakdown({ shots, teamColor }: Props) {
               <div className="flex-1 h-[14px] rounded-md bg-slate-100 overflow-hidden relative">
                 <div
                   className="h-full rounded-md"
-                  style={{ width: `${(t.total / maxTypeCount) * 100}%`, background: teamColor.primary, opacity: 0.35 }}
+                  style={{ width: `${(t.total / maxTypeCount) * 100}%`, background: pctColor(t.pct), opacity: 0.4 }}
                 />
               </div>
               <span className="text-[11px] text-slate-500 w-[28px] text-right font-medium">{t.total}</span>

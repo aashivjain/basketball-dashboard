@@ -154,9 +154,9 @@ export default function ShotChart({ shots, teamColor }: Props) {
       )}
 
       <div className="relative">
-        <svg viewBox="20 20 460 430" className="w-full overflow-hidden rounded-xl">
+        <svg viewBox="0 20 500 435" className="w-full overflow-hidden rounded-xl">
           <defs>
-            <clipPath id="court-clip"><rect x="20" y="20" width="460" height="430" rx="2" /></clipPath>
+            <clipPath id="court-clip"><rect x="0" y="20" width="500" height="435" /></clipPath>
             <pattern id="wood-grain" patternUnits="userSpaceOnUse" width="200" height="200">
               <rect width="200" height="200" fill="#c9a66b" />
               <path d="M0 10 Q50 8 100 12 T200 10" stroke="#b8935a" strokeWidth="0.5" fill="none" opacity="0.4" />
