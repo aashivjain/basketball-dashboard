@@ -34,12 +34,16 @@ def fetch_shot_chart(player_id, player_name, season, team_id=0):
             out = []
             for s in shot_list:
                 out.append({
+                    "game_date": s.get("GAME_DATE", ""),
+                    "shot_type": s["ACTION_TYPE"],
+                    "shot_zone": s["SHOT_ZONE_BASIC"],
+                    "shot_zone_area": s.get("SHOT_ZONE_AREA", ""),
+                    "shot_zone_range": s.get("SHOT_ZONE_RANGE", ""),
+                    "shot_distance": s["SHOT_DISTANCE"],
                     "x": s["LOC_X"],
                     "y": s["LOC_Y"],
                     "made": s["SHOT_MADE_FLAG"] == 1,
-                    "shot_zone": s["SHOT_ZONE_BASIC"],
-                    "shot_distance": s["SHOT_DISTANCE"],
-                    "shot_type": s["ACTION_TYPE"],
+                    "quarter": s.get("PERIOD", 0),
                 })
             return out
         except Exception as e:

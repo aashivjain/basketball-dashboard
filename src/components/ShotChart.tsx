@@ -8,44 +8,60 @@ interface Props {
 
 type ViewMode = 'dots' | 'zones'
 
-// Zone definitions matching NBA/WNBA standard zones
+// Shot coordinate system: origin at basket (0,0), x=left/right, y=distance from basket
+// SVG mapping: SVG_x = 250 + shot_x, SVG_y = 43 + shot_y
+// 3pt arc: center (250,43) radius 238, straights at x=30/470 from y=43 to y=134
+
+// 10 zones split by shot_zone + x-coordinate for finer detail
 const ZONE_DEFS = [
   { name: 'Restricted Area', test: (s: Shot) => s.shot_zone === 'Restricted Area' },
-  { name: 'Paint (Non-RA)', test: (s: Shot) => s.shot_zone === 'In The Paint (Non-RA)' },
-  { name: 'Mid-Range', test: (s: Shot) => s.shot_zone === 'Mid-Range' },
+  { name: 'Paint', test: (s: Shot) => s.shot_zone === 'In The Paint (Non-RA)' },
+  { name: 'Mid-Range Left', test: (s: Shot) => s.shot_zone === 'Mid-Range' && s.x < -80 },
+  { name: 'Mid-Range Center', test: (s: Shot) => s.shot_zone === 'Mid-Range' && s.x >= -80 && s.x <= 80 },
+  { name: 'Mid-Range Right', test: (s: Shot) => s.shot_zone === 'Mid-Range' && s.x > 80 },
   { name: 'Left Corner 3', test: (s: Shot) => s.shot_zone === 'Left Corner 3' },
   { name: 'Right Corner 3', test: (s: Shot) => s.shot_zone === 'Right Corner 3' },
-  { name: 'Above Break 3', test: (s: Shot) => s.shot_zone === 'Above the Break 3' },
-  { name: 'Backcourt', test: (s: Shot) => s.shot_zone === 'Backcourt' },
+  { name: 'Above Break 3 Left', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x < -80 },
+  { name: 'Above Break 3 Center', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x >= -80 && s.x <= 80 },
+  { name: 'Above Break 3 Right', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x > 80 },
 ]
 
-// SVG paths for each zone polygon (viewBox 0 0 500 470)
-// Court: outer rect (20,20)-(480,450), basket at (250,60)
-// 3pt arc: center≈(250,59) r=238, straight portions x=30 and x=470 from y=43 to y=150
-// Paint: (170,20)-(330,210), Restricted: semicircle r=40 at (250,43)
+// SVG polygon paths for each zone (viewBox 0 0 500 470)
+// Based on: basket at SVG (250,43), 3pt arc center (250,43) r=238
+// Corner straights at x=30,470 from y=43 to y=134
+// Paint: x=170-330, y=43-193 (16ft wide, FT line at 15ft)
+// Arc at x=170/330: y=267. Arc bottom at x=250: y=281
 const ZONE_PATHS: Record<string, string> = {
-  'Restricted Area': 'M 210 20 L 210 43 A 40 40 0 0 1 290 43 L 290 20 Z',
-  'Paint (Non-RA)': 'M 170 20 L 170 210 L 330 210 L 330 20 Z',
-  'Mid-Range': 'M 30 20 L 30 150 A 238 238 0 0 0 470 150 L 470 20 Z',
-  'Left Corner 3': 'M 20 20 L 30 20 L 30 150 L 20 150 Z',
-  'Right Corner 3': 'M 470 20 L 480 20 L 480 150 L 470 150 Z',
-  'Above Break 3': 'M 30 150 A 238 238 0 0 0 470 150 L 480 150 L 480 450 L 20 450 L 20 150 Z',
+  'Restricted Area': 'M 210 43 A 40 40 0 0 1 290 43 Z',
+  'Paint': 'M 170 43 L 170 193 L 330 193 L 330 43 Z',
+  'Mid-Range Left': 'M 30 43 L 30 134 A 238 238 0 0 0 170 267 L 170 43 Z',
+  'Mid-Range Center': 'M 170 193 L 170 267 A 238 238 0 0 0 330 267 L 330 193 Z',
+  'Mid-Range Right': 'M 470 43 L 470 134 A 238 238 0 0 1 330 267 L 330 43 Z',
+  'Left Corner 3': 'M 0 43 L 0 134 L 30 134 L 30 43 Z',
+  'Right Corner 3': 'M 470 43 L 470 134 L 500 134 L 500 43 Z',
+  'Above Break 3 Left': 'M 0 134 L 30 134 A 238 238 0 0 0 170 267 L 170 450 L 0 450 Z',
+  'Above Break 3 Center': 'M 170 267 A 238 238 0 0 0 330 267 L 330 450 L 170 450 Z',
+  'Above Break 3 Right': 'M 330 267 A 238 238 0 0 0 470 134 L 500 134 L 500 450 L 330 450 Z',
 }
 
-// Zone label positions (hand-tuned for readability)
+// Label positions for each zone
 const ZONE_LABEL_POS: Record<string, { x: number; y: number }> = {
-  'Restricted Area': { x: 250, y: 62 },
-  'Paint (Non-RA)': { x: 250, y: 155 },
-  'Mid-Range': { x: 250, y: 280 },
-  'Left Corner 3': { x: 25, y: 90 },
-  'Right Corner 3': { x: 475, y: 90 },
-  'Above Break 3': { x: 250, y: 390 },
+  'Restricted Area': { x: 250, y: 68 },
+  'Paint': { x: 250, y: 140 },
+  'Mid-Range Left': { x: 100, y: 150 },
+  'Mid-Range Center': { x: 250, y: 235 },
+  'Mid-Range Right': { x: 400, y: 150 },
+  'Left Corner 3': { x: 15, y: 88 },
+  'Right Corner 3': { x: 485, y: 88 },
+  'Above Break 3 Left': { x: 80, y: 350 },
+  'Above Break 3 Center': { x: 250, y: 370 },
+  'Above Break 3 Right': { x: 420, y: 350 },
 }
 
 function getZoneColor(pct: number): string {
   if (pct >= 55) return '#15803d'
   if (pct >= 45) return '#22c55e'
-  if (pct >= 35) return '#86efac'
+  if (pct >= 35) return '#a3e635'
   if (pct >= 25) return '#fbbf24'
   return '#ef4444'
 }
@@ -77,8 +93,13 @@ export default function ShotChart({ shots, teamColor }: Props) {
     }
   }).filter(z => z.total > 0)
 
-  // Draw order: back to front so smaller zones overlay larger ones
-  const drawOrder = ['Above Break 3', 'Left Corner 3', 'Right Corner 3', 'Mid-Range', 'Paint (Non-RA)', 'Restricted Area']
+  // Draw order: largest areas first, smallest on top
+  const drawOrder = [
+    'Above Break 3 Left', 'Above Break 3 Center', 'Above Break 3 Right',
+    'Left Corner 3', 'Right Corner 3',
+    'Mid-Range Left', 'Mid-Range Center', 'Mid-Range Right',
+    'Paint', 'Restricted Area',
+  ]
 
   return (
     <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
@@ -90,7 +111,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
               onClick={() => setMode('dots')}
               className="px-3 py-1 transition-all"
               style={{ background: mode === 'dots' ? teamColor.primary : 'white', color: mode === 'dots' ? '#fff' : '#64748b' }}
-            >Dots</button>
+            >Shots</button>
             <button
               onClick={() => setMode('zones')}
               className="px-3 py-1 transition-all"
@@ -108,10 +129,10 @@ export default function ShotChart({ shots, teamColor }: Props) {
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>Missed ({missed.length})</span>
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-[10px] mb-2">
+        <div className="flex items-center gap-2 text-[10px] mb-2 flex-wrap">
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#15803d' }}></span>55%+</span>
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#22c55e' }}></span>45%+</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#86efac' }}></span>35%+</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#a3e635' }}></span>35%+</span>
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#fbbf24' }}></span>25%+</span>
           <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm inline-block" style={{ background: '#ef4444' }}></span>&lt;25%</span>
         </div>
@@ -145,7 +166,6 @@ export default function ShotChart({ shots, teamColor }: Props) {
 
         {mode === 'zones' && (
           <>
-            {/* Shaded zone polygons */}
             {drawOrder.map(zoneName => {
               const stat = zoneStats.find(z => z.name === zoneName)
               const path = ZONE_PATHS[zoneName]
@@ -156,8 +176,8 @@ export default function ShotChart({ shots, teamColor }: Props) {
                   key={zoneName}
                   d={path}
                   fill={color}
-                  opacity="0.6"
-                  stroke="rgba(255,255,255,0.6)"
+                  opacity="0.65"
+                  stroke="rgba(255,255,255,0.7)"
                   strokeWidth="1.5"
                 />
               )
@@ -166,14 +186,14 @@ export default function ShotChart({ shots, teamColor }: Props) {
         )}
 
         {/* court lines */}
-        <g stroke="#fff" strokeWidth="1.5" fill="none" opacity={mode === 'zones' ? 0.9 : 0.75}>
+        <g stroke="#fff" strokeWidth="1.5" fill="none" opacity={mode === 'zones' ? 0.95 : 0.75}>
           <rect x="20" y="20" width="460" height="430" rx="2" />
-          <rect x="170" y="20" width="160" height="190" />
-          <circle cx="250" cy="210" r="60" />
+          <rect x="170" y="20" width="160" height="173" />
+          <circle cx="250" cy="193" r="60" />
           <circle cx="250" cy="60" r="7.5" strokeWidth="2" />
           <line x1="220" y1="43" x2="280" y2="43" strokeWidth="2.5" />
-          <path d="M 210 43 A 40 40 0 0 0 290 43" />
-          <path d="M 30 43 L 30 150 A 238 238 0 0 0 470 150 L 470 43" />
+          <path d="M 210 43 A 40 40 0 0 1 290 43" />
+          <path d="M 30 43 L 30 134 A 238 238 0 0 0 470 134 L 470 43" />
           <line x1="20" y1="450" x2="480" y2="450" strokeWidth="1" opacity="0.4" />
         </g>
 
@@ -188,26 +208,28 @@ export default function ShotChart({ shots, teamColor }: Props) {
           </>
         ) : (
           <>
-            {/* Zone labels */}
+            {/* Zone labels with stats */}
             {zoneStats.map(z => {
               const pos = ZONE_LABEL_POS[z.name]
               if (!pos) return null
-              const isSmall = z.name === 'Left Corner 3' || z.name === 'Right Corner 3'
+              const isCorner = z.name.includes('Corner')
+              const w = isCorner ? 28 : 54
+              const h = isCorner ? 32 : 36
               return (
                 <g key={z.name}>
                   <rect
-                    x={pos.x - (isSmall ? 20 : 30)}
-                    y={pos.y - 14}
-                    width={isSmall ? 40 : 60}
-                    height="28"
+                    x={pos.x - w / 2}
+                    y={pos.y - h / 2}
+                    width={w}
+                    height={h}
                     rx="4"
-                    fill="rgba(0,0,0,0.75)"
+                    fill="rgba(0,0,0,0.8)"
                   />
-                  <text x={pos.x} y={pos.y} textAnchor="middle" fill="#fff" fontSize={isSmall ? '9' : '11'} fontWeight="700">
-                    {z.pct.toFixed(0)}%
-                  </text>
-                  <text x={pos.x} y={pos.y + 11} textAnchor="middle" fill="rgba(255,255,255,0.7)" fontSize="8">
+                  <text x={pos.x} y={pos.y - 2} textAnchor="middle" fill="#fff" fontSize={isCorner ? '9' : '11'} fontWeight="700">
                     {z.made}/{z.total}
+                  </text>
+                  <text x={pos.x} y={pos.y + (isCorner ? 10 : 12)} textAnchor="middle" fill="rgba(255,255,255,0.8)" fontSize={isCorner ? '8' : '10'}>
+                    {z.pct.toFixed(1)}%
                   </text>
                 </g>
               )

@@ -30,9 +30,9 @@ export default function PlayerCard({ player, stats, teamColor }: Props) {
         <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
 
         <div className="grid grid-cols-3 gap-3 text-center">
-          <MiniStat label="FG%" value={stats ? `${(stats.fg_pct * 100).toFixed(1)}` : '—'} />
-          <MiniStat label="3P%" value={stats ? `${(stats.fg3_pct * 100).toFixed(1)}` : '—'} />
-          <MiniStat label="FT%" value={stats ? `${(stats.ft_pct * 100).toFixed(1)}` : '—'} />
+          <MiniStat label="FG%" value={`${((stats?.fg_pct ?? player.fg_pct) * 100).toFixed(1)}`} />
+          <MiniStat label="3P%" value={`${((stats?.fg3_pct ?? player.fg3_pct) * 100).toFixed(1)}`} />
+          <MiniStat label="FT%" value={`${((stats?.ft_pct ?? player.ft_pct) * 100).toFixed(1)}`} />
         </div>
       </div>
     </div>
