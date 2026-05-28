@@ -29,10 +29,10 @@ export default function PlayerCard({ player, stats, teamColor }: Props) {
 
         <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
 
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <MiniStat label="FG%" value={`${((stats?.fg_pct ?? player.fg_pct) * 100).toFixed(1)}`} />
-          <MiniStat label="3P%" value={`${((stats?.fg3_pct ?? player.fg3_pct) * 100).toFixed(1)}`} />
-          <MiniStat label="FT%" value={`${((stats?.ft_pct ?? player.ft_pct) * 100).toFixed(1)}`} />
+        <div className="grid grid-cols-3 gap-3 text-center py-1">
+          <MiniStat label="FG%" value={`${((stats?.fg_pct ?? player.fg_pct) * 100).toFixed(1)}%`} color={teamColor.primary} />
+          <MiniStat label="3P%" value={`${((stats?.fg3_pct ?? player.fg3_pct) * 100).toFixed(1)}%`} color={teamColor.primary} />
+          <MiniStat label="FT%" value={`${((stats?.ft_pct ?? player.ft_pct) * 100).toFixed(1)}%`} color={teamColor.primary} />
         </div>
       </div>
     </div>
@@ -50,11 +50,11 @@ function StatItem({ label, value, color }: { label: string; value: string; color
   )
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div>
-      <div className="text-sm font-medium text-slate-700">{value}</div>
-      <div className="text-[10px] text-slate-400">{label}</div>
+      <div className="text-xl font-semibold" style={{ color }}>{value}</div>
+      <div className="text-[11px] text-slate-400 mt-0.5 font-medium">{label}</div>
     </div>
   )
 }

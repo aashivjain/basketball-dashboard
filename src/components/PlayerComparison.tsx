@@ -60,26 +60,48 @@ function StatBar({ a, b, max, colorA, colorB, label, formatFn, invert }: {
 }
 
 export default function PlayerComparison({ playerA, playerB, nameA, nameB, teamColorA, teamColorB }: Props) {
-  // Count "wins" for summary
-  const allKeys = [...coreMetrics.map(m => m.key), ...shootingMetrics.map(m => m.key)]
-  const aWins = allKeys.filter(k => playerA[k] > playerB[k]).length
-  const bWins = allKeys.filter(k => playerB[k] > playerA[k]).length
+  // Count category advantages across PTS, REB, AST, STL, BLK, FG%, 3P%, FT% (8 key categories)
+  const edgeMetrics = [
+    { key: 'pts' as const, label: 'PTS' },
+    { key: 'reb' as const, label: 'REB' },
+    { key: 'ast' as const, label: 'AST' },
+    { key: 'stl' as const, label: 'STL' },
+    { key: 'blk' as const, label: 'BLK' },
+    { key: 'fg_pct' as const, label: 'FG%' },
+    { key: 'fg3_pct' as const, label: '3P%' },
+    { key: 'ft_pct' as const, label: 'FT%' },
+  ]
+  const aWinsList = edgeMetrics.filter(m => playerA[m.key] > playerB[m.key])
+  const bWinsList = edgeMetrics.filter(m => playerB[m.key] > playerA[m.key])
+  const aWins = aWinsList.length
+  const bWins = bWinsList.length
+  const total = edgeMetrics.length
 
   return (
     <div className="rounded-2xl p-6 bg-white border border-slate-100 space-y-6">
-      {/* Header with summary */}
+      {/* Header */}
       <div className="grid grid-cols-3 text-center">
         <div>
           <div className="text-base font-semibold" style={{ color: teamColorA.primary }}>{nameA}</div>
           <div className="text-xs text-slate-400 mt-0.5">{playerA.team} &middot; {playerA.gp} GP</div>
         </div>
         <div className="flex flex-col items-center justify-center">
-          <div className="text-[10px] text-slate-400 uppercase tracking-wider">Head to Head</div>
-          <div className="text-sm mt-0.5">
-            <span style={{ color: teamColorA.primary, fontWeight: aWins >= bWins ? 700 : 400 }}>{aWins}</span>
-            <span className="text-slate-300 mx-1">-</span>
-            <span style={{ color: teamColorB.primary, fontWeight: bWins >= aWins ? 700 : 400 }}>{bWins}</span>
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Statistical Edge</div>
+          {/* Visual bar showing category wins */}
+          <div className="flex items-center gap-1 w-full max-w-[140px]">
+            <span className="text-[12px] font-bold" style={{ color: teamColorA.primary }}>{aWins}</span>
+            <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden flex">
+              {total > 0 && (
+                <>
+                  <div className="h-full rounded-l-full" style={{ width: `${(aWins / total) * 100}%`, background: teamColorA.primary, opacity: 0.75 }} />
+                  <div className="h-full" style={{ width: `${((total - aWins - bWins) / total) * 100}%`, background: '#e2e8f0' }} />
+                  <div className="h-full rounded-r-full" style={{ width: `${(bWins / total) * 100}%`, background: teamColorB.primary, opacity: 0.75 }} />
+                </>
+              )}
+            </div>
+            <span className="text-[12px] font-bold" style={{ color: teamColorB.primary }}>{bWins}</span>
           </div>
+          <div className="text-[9px] text-slate-400 mt-1.5 leading-tight text-center">of {total} categories: {edgeMetrics.map(m => m.label).join(', ')}</div>
         </div>
         <div>
           <div className="text-base font-semibold" style={{ color: teamColorB.primary }}>{nameB}</div>

@@ -54,10 +54,13 @@ export default function Dashboard() {
     return availableSeasons.map(yr => {
       const sd = data.seasons[yr]
       if (!sd) return null
+      // Look in all_players first (works for every player), then fall back to stats (Fever detailed)
+      const ap = sd.regular_season.all_players?.find(x => x.player_id === playerId)
+      if (ap) return { season: yr, ...ap }
       const s = sd.regular_season.stats.find(x => x.player_id === playerId)
       if (!s) return null
       return { season: yr, ...s }
-    }).filter(Boolean) as (PlayerStats & { season: string })[]
+    }).filter(Boolean) as any[]
   }, [playerId])
 
   const teamColor = player ? getTeamColors(player.team) : null
