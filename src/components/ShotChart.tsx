@@ -28,27 +28,27 @@ const ZONE_DEFS = [
 
 // SVG polygon paths for each zone (viewBox 0 0 500 470)
 const ZONE_PATHS: Record<string, string> = {
-  'Restricted Area': 'M 210 43 A 40 40 0 0 1 290 43 A 40 40 0 0 1 210 43 Z',
+  'Restricted Area': 'M 210 43 A 40 40 0 0 1 290 43',
   'Paint (Non-RA)': 'M 170 43 L 170 193 L 330 193 L 330 43 Z',
   'Mid-Range Left': 'M 30 43 L 30 134 A 238 238 0 0 0 170 267 L 170 43 Z',
   'Mid-Range Center': 'M 170 193 L 170 267 A 238 238 0 0 0 330 267 L 330 193 Z',
   'Mid-Range Right': 'M 470 43 L 470 134 A 238 238 0 0 1 330 267 L 330 43 Z',
-  'Left Corner 3': 'M 0 43 L 0 134 L 30 134 L 30 43 Z',
-  'Right Corner 3': 'M 470 43 L 470 134 L 500 134 L 500 43 Z',
-  'Above Break 3 Left': 'M 0 134 L 30 134 A 238 238 0 0 0 170 267 L 170 450 L 0 450 Z',
+  'Left Corner 3': 'M 0 20 L 0 140 L 30 140 L 30 20 Z',
+  'Right Corner 3': 'M 470 20 L 470 140 L 500 140 L 500 20 Z',
+  'Above Break 3 Left': 'M 0 140 L 30 140 A 238 238 0 0 0 170 267 L 170 450 L 0 450 Z',
   'Above Break 3 Center': 'M 170 267 A 238 238 0 0 0 330 267 L 330 450 L 170 450 Z',
-  'Above Break 3 Right': 'M 330 267 A 238 238 0 0 0 470 134 L 500 134 L 500 450 L 330 450 Z',
+  'Above Break 3 Right': 'M 330 267 A 238 238 0 0 0 470 140 L 500 140 L 500 450 L 330 450 Z',
 }
 
 // Label positions for each zone
 const ZONE_LABEL_POS: Record<string, { x: number; y: number }> = {
-  'Restricted Area': { x: 250, y: 60 },
+  'Restricted Area': { x: 250, y: 65 },
   'Paint (Non-RA)': { x: 250, y: 145 },
   'Mid-Range Left': { x: 100, y: 155 },
   'Mid-Range Center': { x: 250, y: 240 },
   'Mid-Range Right': { x: 400, y: 155 },
-  'Left Corner 3': { x: 15, y: 88 },
-  'Right Corner 3': { x: 485, y: 88 },
+  'Left Corner 3': { x: 15, y: 80 },
+  'Right Corner 3': { x: 485, y: 80 },
   'Above Break 3 Left': { x: 80, y: 350 },
   'Above Break 3 Center': { x: 250, y: 380 },
   'Above Break 3 Right': { x: 420, y: 350 },
@@ -315,45 +315,48 @@ export default function ShotChart({ shots, teamColor }: Props) {
                     }}
                   >
                     <rect
-                      x={pos.x - (isCorner ? 14 : 30)}
-                      y={pos.y - (isCorner ? 18 : 22)}
-                      width={isCorner ? 28 : 60}
-                      height={isCorner ? 36 : 44}
+                      x={pos.x - (isCorner ? 14 : 32)}
+                      y={pos.y - (isCorner ? 20 : 23)}
+                      width={isCorner ? 28 : 64}
+                      height={isCorner ? 40 : 46}
                       rx="5"
                       fill={isHovered ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.8)'}
-                      stroke={isHovered ? '#fff' : 'transparent'}
+                      stroke={isHovered ? '#fff' : 'rgba(255,255,255,0.3)'}
                       strokeWidth="1"
                     />
                     {/* Zone short name */}
                     <text
                       x={pos.x}
-                      y={pos.y - (isCorner ? 6 : 8)}
+                      y={pos.y - (isCorner ? 8 : 9)}
                       textAnchor="middle"
-                      fill="rgba(255,255,255,0.6)"
-                      fontSize={isCorner ? '7' : '8'}
+                      fill="rgba(255,255,255,0.65)"
+                      fontSize={isCorner ? '8' : '9'}
                       fontWeight="600"
+                      fontFamily="Inter, sans-serif"
                     >
                       {z.shortName}
                     </text>
                     {/* Made/Total */}
                     <text
                       x={pos.x}
-                      y={pos.y + (isCorner ? 5 : 5)}
+                      y={pos.y + (isCorner ? 4 : 5)}
                       textAnchor="middle"
                       fill="#fff"
-                      fontSize={isCorner ? '9' : '12'}
+                      fontSize={isCorner ? '10' : '13'}
                       fontWeight="700"
+                      fontFamily="Inter, sans-serif"
                     >
                       {z.made}/{z.total}
                     </text>
                     {/* FG% */}
                     <text
                       x={pos.x}
-                      y={pos.y + (isCorner ? 14 : 17)}
+                      y={pos.y + (isCorner ? 15 : 18)}
                       textAnchor="middle"
                       fill={getZoneColor(z.pct)}
-                      fontSize={isCorner ? '8' : '10'}
+                      fontSize={isCorner ? '9' : '11'}
                       fontWeight="700"
+                      fontFamily="Inter, sans-serif"
                     >
                       {z.pct.toFixed(1)}%
                     </text>

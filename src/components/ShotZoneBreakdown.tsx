@@ -47,7 +47,7 @@ export default function ShotZoneBreakdown({ shots, teamColor }: Props) {
 
   return (
     <div className="rounded-2xl p-6 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
-      <h3 className="text-base font-semibold text-slate-800 mb-1">Shot Profile</h3>
+      <h3 className="text-lg font-semibold text-slate-800 mb-1" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Shot Profile</h3>
       <p className="text-xs text-slate-400 mb-5">{shots.length} total shots this season</p>
 
       {/* Distance distribution */}

@@ -9,6 +9,7 @@ import GameLogTable from './GameLogTable'
 import ShotZoneBreakdown from './ShotZoneBreakdown'
 import PlayerComparison from './PlayerComparison'
 import GrowthChart from './GrowthChart'
+import AdvancedStats from './AdvancedStats'
 
 import rawData from '../data/fever_data.json'
 
@@ -86,7 +87,7 @@ export default function Dashboard() {
       {/* Standard neutral header */}
       <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/60" style={{ background: 'rgba(255,255,255,0.95)' }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-5 flex-wrap">
-          <h1 className="text-lg tracking-tight mr-auto" style={{ fontFamily: "'Georgia', serif", color: '#1e293b' }}>
+          <h1 className="text-xl tracking-tight mr-auto font-semibold" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>
             WNBA Analytics
           </h1>
 
@@ -158,9 +159,9 @@ export default function Dashboard() {
             {/* player intro */}
             <div className="flex items-end gap-6 flex-wrap">
               <div>
-                <p className="text-sm uppercase tracking-widest mb-1" style={{ color: teamColor?.primary ?? '#64748b' }}>{player.team}</p>
-                <h2 className="text-3xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif", color: '#1e293b' }}>{player.name}</h2>
-                <p className="text-sm text-slate-400 mt-1">{player.gp} games &middot; {player.min.toFixed(1)} min/game &middot; {season}</p>
+                <p className="text-sm uppercase tracking-widest mb-1 font-medium" style={{ color: teamColor?.primary ?? '#64748b', fontFamily: "'Inter', sans-serif" }}>{player.team}</p>
+                <h2 className="text-4xl font-normal tracking-tight" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>{player.name}</h2>
+                <p className="text-sm text-slate-400 mt-1.5" style={{ fontFamily: "'Inter', sans-serif" }}>{player.gp} games &middot; {player.min.toFixed(1)} min/game &middot; {season}</p>
               </div>
             </div>
 
@@ -175,6 +176,8 @@ export default function Dashboard() {
               <ShotChart shots={shots} teamColor={teamColor!} />
               {shots.length > 0 && <ShotZoneBreakdown shots={shots} teamColor={teamColor!} />}
             </div>
+
+            <AdvancedStats player={player} games={games} teamColor={teamColor!} leagueAvg={leagueAvg} />
 
             {games.length > 0 && (
               <PerformanceTrend games={games} teamColor={teamColor!} />
