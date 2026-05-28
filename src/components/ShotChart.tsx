@@ -14,16 +14,16 @@ type ViewMode = 'dots' | 'zones'
 
 // 10 zones split by shot_zone + x-coordinate for finer detail
 const ZONE_DEFS = [
-  { name: 'Restricted Area', shortName: 'RA', test: (s: Shot) => s.shot_zone === 'Restricted Area' },
+  { name: 'Restricted Area', shortName: 'Rim', test: (s: Shot) => s.shot_zone === 'Restricted Area' },
   { name: 'Paint (Non-RA)', shortName: 'Paint', test: (s: Shot) => s.shot_zone === 'In The Paint (Non-RA)' },
   { name: 'Mid-Range Left', shortName: 'Mid L', test: (s: Shot) => s.shot_zone === 'Mid-Range' && s.x < -80 },
   { name: 'Mid-Range Center', shortName: 'Mid C', test: (s: Shot) => s.shot_zone === 'Mid-Range' && s.x >= -80 && s.x <= 80 },
   { name: 'Mid-Range Right', shortName: 'Mid R', test: (s: Shot) => s.shot_zone === 'Mid-Range' && s.x > 80 },
-  { name: 'Left Corner 3', shortName: 'LC3', test: (s: Shot) => s.shot_zone === 'Left Corner 3' },
-  { name: 'Right Corner 3', shortName: 'RC3', test: (s: Shot) => s.shot_zone === 'Right Corner 3' },
-  { name: 'Above Break 3 Left', shortName: 'AB3 L', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x < -80 },
-  { name: 'Above Break 3 Center', shortName: 'AB3 C', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x >= -80 && s.x <= 80 },
-  { name: 'Above Break 3 Right', shortName: 'AB3 R', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x > 80 },
+  { name: 'Left Corner 3', shortName: 'Corner', test: (s: Shot) => s.shot_zone === 'Left Corner 3' },
+  { name: 'Right Corner 3', shortName: 'Corner', test: (s: Shot) => s.shot_zone === 'Right Corner 3' },
+  { name: 'Above Break 3 Left', shortName: 'Wing 3', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x < -80 },
+  { name: 'Above Break 3 Center', shortName: 'Top 3', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x >= -80 && s.x <= 80 },
+  { name: 'Above Break 3 Right', shortName: 'Wing 3', test: (s: Shot) => s.shot_zone === 'Above the Break 3' && s.x > 80 },
 ]
 
 // SVG polygon paths for each zone (viewBox 0 0 500 470)
@@ -220,7 +220,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
           {/* court lines */}
           <g stroke="#fff" strokeWidth="1.5" fill="none" opacity={mode === 'zones' ? 0.9 : 0.75}>
             {/* outer boundary */}
-            <rect x="20" y="20" width="460" height="430" rx="2" />
+            <rect x="0" y="20" width="500" height="435" rx="2" />
             {/* paint box */}
             <rect x="170" y="20" width="160" height="173" />
             {/* free throw circle */}
@@ -234,7 +234,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
             {/* 3pt line */}
             <path d="M 30 43 L 30 134 A 238 238 0 0 0 470 134 L 470 43" />
             {/* half-court line */}
-            <line x1="20" y1="450" x2="480" y2="450" strokeWidth="1" opacity="0.4" />
+            <line x1="0" y1="450" x2="500" y2="450" strokeWidth="1" opacity="0.4" />
           </g>
 
           {/* Zone boundary dashed lines for clarity */}
@@ -388,9 +388,21 @@ export default function ShotChart({ shots, teamColor }: Props) {
         {mode === 'zones' && hoveredZone && !selectedZone && (() => {
           const stat = zoneStats.find(z => z.name === hoveredZone)
           if (!stat) return null
+          const friendlyNames: Record<string, string> = {
+            'Restricted Area': 'At the Rim',
+            'Paint (Non-RA)': 'In the Paint',
+            'Mid-Range Left': 'Mid-Range (Left)',
+            'Mid-Range Center': 'Mid-Range (Center)',
+            'Mid-Range Right': 'Mid-Range (Right)',
+            'Left Corner 3': 'Left Corner Three',
+            'Right Corner 3': 'Right Corner Three',
+            'Above Break 3 Left': 'Left Wing Three',
+            'Above Break 3 Center': 'Top of the Key Three',
+            'Above Break 3 Right': 'Right Wing Three',
+          }
           return (
             <div className="absolute top-2 left-2 bg-slate-900/95 text-white rounded-lg px-3 py-2 text-xs shadow-xl z-50 backdrop-blur-sm">
-              <div className="font-semibold text-[13px]">{stat.name}</div>
+              <div className="font-semibold text-[13px]">{friendlyNames[stat.name] ?? stat.name}</div>
               <div className="text-slate-300 mt-0.5">{stat.made}/{stat.total} made · <span className="font-bold" style={{ color: getZoneColor(stat.pct) }}>{stat.pct.toFixed(1)}%</span></div>
               <div className="text-slate-400 mt-0.5 italic">Click to see individual shots</div>
             </div>
