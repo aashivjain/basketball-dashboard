@@ -405,7 +405,9 @@ function MetricCard({ label, value, desc, color, benchmark, actual, invertColor 
       <div className="text-[11px] font-medium text-slate-600 mt-0.5">{label}</div>
       {isGood !== undefined && (
         <div className={`text-[10px] mt-1 font-medium ${isGood ? 'text-green-600' : 'text-orange-500'}`}>
-          {isGood ? '▲ Above avg' : '▼ Below avg'}
+          {invertColor
+            ? (isGood ? '▼ Below avg (good)' : '▲ Above avg (high)')
+            : (isGood ? '▲ Above avg' : '▼ Below avg')}
         </div>
       )}
       <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
