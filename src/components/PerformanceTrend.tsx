@@ -7,7 +7,9 @@ interface Props {
 }
 
 export default function PerformanceTrend({ games, teamColor }: Props) {
-  const chartData = games.map((g, i) => ({
+  // Reverse so oldest game is index 1 (left) → most recent is on the right
+  const chronological = [...games].reverse()
+  const chartData = chronological.map((g, i) => ({
     idx: i + 1,
     date: g.game_date,
     pts: g.pts,

@@ -310,9 +310,6 @@ export default function AdvancedStats({ player, games, teamColor, leagueAvg }: P
                       : `Scores ${(lossPts - winPts).toFixed(1)} more in losses — may take on heavier load when team is behind.`)
                   }
                 }
-                    insights.push(`Shoots ${((winFg - lossFg) * 100).toFixed(0)}% higher FG in wins — shot selection/quality directly drives wins.`)
-                  }
-                }
 
                 // 2. Home/away differential
                 const homeGames = games.filter(g => g.matchup.includes('vs.'))

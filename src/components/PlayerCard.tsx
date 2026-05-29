@@ -1,14 +1,11 @@
-import type { LeaguePlayer, PlayerStats } from '../types'
+import type { LeaguePlayer } from '../types'
 
 interface Props {
   player: LeaguePlayer
-  stats: PlayerStats | null
   teamColor: { primary: string; secondary: string; bg: string }
 }
 
-export default function PlayerCard({ player, stats, teamColor }: Props) {
-  // Always use player (from all_players, refreshed) for main stats display.
-  // Fall back to stats only if player is somehow missing a field.
+export default function PlayerCard({ player, teamColor }: Props) {
   const s = player
 
   return (

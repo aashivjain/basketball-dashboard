@@ -234,16 +234,6 @@ def main():
     print(f"Done in {elapsed:.0f}s. Data saved to {DATA_FILE.name}")
     print(f"Updated {len(stale_pids)}/{len(players)} players. Last updated: {data['last_updated']}")
 
-    # Save + timestamp
-    data["last_updated"] = datetime.now().isoformat()
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
-
-    elapsed = (datetime.now() - start).total_seconds()
-    print(f"\n{'=' * 50}")
-    print(f"Done in {elapsed:.0f}s. Data saved to {DATA_FILE.name}")
-    print(f"Last updated: {data['last_updated']}")
-
 
 if __name__ == "__main__":
     main()

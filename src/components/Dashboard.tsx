@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import type { FeverData, SeasonData, PlayerStats, LeaguePlayer } from '../types'
+import type { FeverData, SeasonData, LeaguePlayer } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
 import ShotChart from './ShotChart'
@@ -38,10 +38,6 @@ export default function Dashboard() {
   }, [allPlayers])
 
   const player = useMemo(() => allPlayers.find(p => p.player_id === playerId) ?? null, [allPlayers, playerId])
-  const stats: PlayerStats | null = useMemo(
-    () => block?.stats.find(s => s.player_id === playerId) ?? null,
-    [block, playerId]
-  )
   const games = useMemo(() => (playerId && block ? block.game_logs[String(playerId)] ?? [] : []), [block, playerId])
   const shots = useMemo(() => (playerId && block ? block.shot_charts[String(playerId)] ?? [] : []), [block, playerId])
   const leagueAvg = block?.league_averages ?? null
@@ -166,7 +162,7 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <PlayerCard player={player} stats={stats} teamColor={teamColor!} />
+              <PlayerCard player={player} teamColor={teamColor!} />
               <div className="lg:col-span-2">
                 <StatsRadar player={player} leagueAvg={leagueAvg} positionAvg={positionAvg} teamColor={teamColor!} compareStats={comparePlayer} compareName={comparePlayer?.name} />
               </div>
