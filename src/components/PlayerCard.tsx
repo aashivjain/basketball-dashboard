@@ -7,7 +7,9 @@ interface Props {
 }
 
 export default function PlayerCard({ player, stats, teamColor }: Props) {
-  const s = stats || player
+  // Always use player (from all_players, refreshed) for main stats display.
+  // Fall back to stats only if player is somehow missing a field.
+  const s = player
 
   return (
     <div className="rounded-2xl p-6 transition-all" style={{ background: 'white', border: `1px solid ${teamColor.primary}15` }}>
@@ -30,9 +32,9 @@ export default function PlayerCard({ player, stats, teamColor }: Props) {
         <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
 
         <div className="grid grid-cols-3 gap-3 text-center py-2">
-          <MiniStat label="FG%" value={`${((stats?.fg_pct ?? player.fg_pct) * 100).toFixed(1)}%`} color={teamColor.primary} />
-          <MiniStat label="3P%" value={`${((stats?.fg3_pct ?? player.fg3_pct) * 100).toFixed(1)}%`} color={teamColor.primary} />
-          <MiniStat label="FT%" value={`${((stats?.ft_pct ?? player.ft_pct) * 100).toFixed(1)}%`} color={teamColor.primary} />
+          <MiniStat label="FG%" value={`${(s.fg_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
+          <MiniStat label="3P%" value={`${(s.fg3_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
+          <MiniStat label="FT%" value={`${(s.ft_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
         </div>
       </div>
     </div>

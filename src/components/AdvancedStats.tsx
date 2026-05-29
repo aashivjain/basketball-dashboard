@@ -275,24 +275,41 @@ export default function AdvancedStats({ player, games, teamColor, leagueAvg }: P
                 // 1. Win correlation: scoring jump in wins vs losses
                 const winGames = games.filter(g => g.wl === 'W')
                 const lossGames = games.filter(g => g.wl === 'L')
-                if (winGames.length > 0 && lossGames.length > 0) {
+                if (winGames.length >= 2 && lossGames.length >= 2) {
                   const winAst = avg(winGames.map(g => g.ast))
                   const lossAst = avg(lossGames.map(g => g.ast))
                   const winTov = avg(winGames.map(g => g.tov))
                   const lossTov = avg(lossGames.map(g => g.tov))
                   const winFg = avg(winGames.map(g => g.fg_pct))
                   const lossFg = avg(lossGames.map(g => g.fg_pct))
+                  const winPts = avg(winGames.map(g => g.pts))
+                  const lossPts = avg(lossGames.map(g => g.pts))
 
                   // Playmaking difference in wins
-                  if (winAst - lossAst > 1.5) {
+                  if (winAst - lossAst > 1.0) {
                     insights.push(`Averages ${(winAst - lossAst).toFixed(1)} more AST in wins — team wins when this player facilitates.`)
                   }
                   // Ball security in wins
-                  if (lossTov - winTov > 1.0) {
-                    insights.push(`Commits ${(lossTov - winTov).toFixed(1)} fewer TOV in wins — ball security is the strongest predictor of team outcome.`)
+                  if (lossTov - winTov > 0.7) {
+                    insights.push(`Commits ${(lossTov - winTov).toFixed(1)} fewer TOV in wins — ball security is a key predictor of team outcome.`)
                   }
                   // Efficiency difference
-                  if ((winFg - lossFg) * 100 > 8) {
+                  if ((winFg - lossFg) * 100 > 5) {
+                    insights.push(`Shoots ${((winFg - lossFg) * 100).toFixed(0)}% better FG in wins — shot quality directly drives team success.`)
+                  }
+                  // Scoring difference
+                  if (winPts - lossPts > 3) {
+                    insights.push(`Scores ${(winPts - lossPts).toFixed(1)} more PPG in wins — elevated production strongly correlates with team victories.`)
+                  }
+                } else if (winGames.length > 0 && lossGames.length > 0) {
+                  const winPts = avg(winGames.map(g => g.pts))
+                  const lossPts = avg(lossGames.map(g => g.pts))
+                  if (Math.abs(winPts - lossPts) > 2) {
+                    insights.push(winPts > lossPts
+                      ? `Averages ${(winPts - lossPts).toFixed(1)} more PPG in wins vs losses.`
+                      : `Scores ${(lossPts - winPts).toFixed(1)} more in losses — may take on heavier load when team is behind.`)
+                  }
+                }
                     insights.push(`Shoots ${((winFg - lossFg) * 100).toFixed(0)}% higher FG in wins — shot selection/quality directly drives wins.`)
                   }
                 }
@@ -346,7 +363,18 @@ export default function AdvancedStats({ player, games, teamColor, leagueAvg }: P
 
                 // Pick the most interesting insight (first one is usually the most impactful)
                 if (insights.length === 0) {
-                  return `${player.name} averaging ${player.pts.toFixed(1)}/${player.reb.toFixed(1)}/${player.ast.toFixed(1)} across ${games.length} games — sample still building for deeper patterns.`
+                  // Guaranteed useful fallback for any player with games
+                  const winPct = games.length > 0 ? (games.filter(g => g.wl === 'W').length / games.length * 100) : 0
+                  const avgFg = avg(games.map(g => g.fg_pct)) * 100
+                  const avgAst = avg(games.map(g => g.ast))
+                  const avgTov = avg(games.map(g => g.tov))
+                  if (avgAst > 0 && avgTov > 0) {
+                    const ratio = avgAst / avgTov
+                    if (ratio > 2.5) return `Elite ball security with a ${ratio.toFixed(1)} AST/TO ratio across ${games.length} games. Team is ${winPct.toFixed(0)}% in games played.`
+                    if (ratio > 1.5) return `Solid playmaker (${ratio.toFixed(1)} AST/TO) shooting ${avgFg.toFixed(0)}% from the field. Team record: ${winPct.toFixed(0)}% win rate.`
+                    return `Shooting ${avgFg.toFixed(0)}% FG with ${avgTov.toFixed(1)} TOV/game — ball security is an area to monitor. Team at ${winPct.toFixed(0)}% win rate.`
+                  }
+                  return `Shooting ${avgFg.toFixed(0)}% from the field across ${games.length} games with a ${winPct.toFixed(0)}% team win rate.`
                 }
                 // Return top 1-2 insights
                 return insights.slice(0, 2).join(' ')
