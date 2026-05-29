@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "refresh": "python scripts/refresh_current_season.py",
-    "refresh:fast": "python scripts/refresh_current_season.py --fast"
+    "refresh": ".venv/Scripts/python scripts/refresh_current_season.py",
+    "refresh:fast": ".venv/Scripts/python scripts/refresh_current_season.py --fast"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
