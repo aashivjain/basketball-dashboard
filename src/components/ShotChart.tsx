@@ -28,8 +28,8 @@ const ZONE_DEFS = [
 
 // SVG polygon paths for each zone (viewBox 0 0 500 470)
 const ZONE_PATHS: Record<string, string> = {
-  'Restricted Area': 'M 210 43 A 40 40 0 0 1 290 43',
-  'Paint (Non-RA)': 'M 170 43 L 170 193 L 330 193 L 330 43 Z',
+  'Restricted Area': 'M 210 43 A 40 40 0 1 1 290 43 Z',
+  'Paint (Non-RA)': 'M 170 43 L 170 193 L 330 193 L 330 43 L 290 43 A 40 40 0 1 0 210 43 Z',
   'Mid-Range Left': 'M 30 43 L 30 134 A 238 238 0 0 0 170 267 L 170 43 Z',
   'Mid-Range Center': 'M 170 193 L 170 267 A 238 238 0 0 0 330 267 L 330 193 Z',
   'Mid-Range Right': 'M 470 43 L 470 134 A 238 238 0 0 1 330 267 L 330 43 Z',

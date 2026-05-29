@@ -30,8 +30,17 @@ export default function ShotZoneBreakdown({ shots, teamColor }: Props) {
 
   // Shot type breakdown (top 5)
   const types: Record<string, { made: number; total: number }> = {}
+  const RENAME_MAP: Record<string, string> = {
+    'Jump': 'Pull-Up Jumper',
+    'Driving Floating': 'Driving Floater',
+    'Turnaround Jump': 'Turnaround Jumper',
+    'Step Back Jump': 'Step-Back Jumper',
+    'Fadeaway Jump': 'Fadeaway Jumper',
+    'Running Pull-Up Jump': 'Running Pull-Up',
+  }
   for (const s of shots) {
-    const t = s.shot_type.replace(/ Shot$/, '')
+    let t = s.shot_type.replace(/ Shot$/, '')
+    t = RENAME_MAP[t] ?? t
     if (!types[t]) types[t] = { made: 0, total: 0 }
     types[t].total++
     if (s.made) types[t].made++
