@@ -398,15 +398,29 @@ function MetricCard({ label, value, desc, color, benchmark, actual, invertColor 
     ? (invertColor ? actual < benchmark : actual > benchmark)
     : undefined
   
-  // Calculate visual bar percentage
-  let barPercent = 50 // default middle
+  // Calculate diverging bar: middle is average, left is below, right is above
+  let fillPercent = 0
+  let fillDirection: 'left' | 'right' | null = null
+  
   if (benchmark !== undefined && actual !== undefined) {
     if (invertColor) {
-      // For inverted metrics: lower is better, so flip the ratio
-      barPercent = Math.min(100, Math.max(0, (benchmark / actual) * 100))
+      // For inverted metrics: lower is better
+      if (actual < benchmark) {
+        fillDirection = 'right'
+        fillPercent = Math.min(50, (benchmark - actual) / benchmark * 50)
+      } else {
+        fillDirection = 'left'
+        fillPercent = Math.min(50, (actual - benchmark) / benchmark * 50)
+      }
     } else {
       // For normal metrics: higher is better
-      barPercent = Math.min(100, Math.max(0, (actual / benchmark) * 100))
+      if (actual > benchmark) {
+        fillDirection = 'right'
+        fillPercent = Math.min(50, (actual - benchmark) / benchmark * 50)
+      } else {
+        fillDirection = 'left'
+        fillPercent = Math.min(50, (benchmark - actual) / benchmark * 50)
+      }
     }
   }
   
@@ -417,13 +431,31 @@ function MetricCard({ label, value, desc, color, benchmark, actual, invertColor 
       </div>
       <div className="text-[11px] font-medium text-slate-600 mt-0.5">{label}</div>
       
-      {/* Visual comparison bar */}
+      {/* Diverging comparison bar: middle = average */}
       {benchmark !== undefined && actual !== undefined && (
-        <div className="mt-2 mb-1.5 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all ${isGood ? 'bg-green-500' : 'bg-orange-400'}`}
-            style={{ width: `${barPercent}%` }}
-          />
+        <div className="mt-2 mb-1.5 flex items-center gap-1">
+          {/* Left side (below average) */}
+          <div className="flex-1 h-1.5 bg-slate-200 rounded-r-none" style={{ position: 'relative' }}>
+            {fillDirection === 'left' && (
+              <div 
+                className="h-full bg-red-500 rounded-r-none"
+                style={{ width: `${fillPercent * 2}%`, marginLeft: `${100 - fillPercent * 2}%` }}
+              />
+            )}
+          </div>
+          
+          {/* Middle marker (average) */}
+          <div className="w-0.5 h-2 bg-slate-400" />
+          
+          {/* Right side (above average) */}
+          <div className="flex-1 h-1.5 bg-slate-200 rounded-l-none" style={{ position: 'relative' }}>
+            {fillDirection === 'right' && (
+              <div 
+                className="h-full bg-green-500 rounded-l-none"
+                style={{ width: `${fillPercent * 2}%` }}
+              />
+            )}
+          </div>
         </div>
       )}
       
