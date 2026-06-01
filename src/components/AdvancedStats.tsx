@@ -397,12 +397,36 @@ function MetricCard({ label, value, desc, color, benchmark, actual, invertColor 
   const isGood = benchmark !== undefined && actual !== undefined
     ? (invertColor ? actual < benchmark : actual > benchmark)
     : undefined
+  
+  // Calculate visual bar percentage
+  let barPercent = 50 // default middle
+  if (benchmark !== undefined && actual !== undefined) {
+    if (invertColor) {
+      // For inverted metrics: lower is better, so flip the ratio
+      barPercent = Math.min(100, Math.max(0, (benchmark / actual) * 100))
+    } else {
+      // For normal metrics: higher is better
+      barPercent = Math.min(100, Math.max(0, (actual / benchmark) * 100))
+    }
+  }
+  
   return (
     <div className="group relative rounded-xl bg-slate-50 p-3 hover:bg-slate-100 transition-colors">
       <div className="text-xl font-bold tracking-tight" style={{ color: invertColor && isGood === false ? '#dc2626' : color }}>
         {value}
       </div>
       <div className="text-[11px] font-medium text-slate-600 mt-0.5">{label}</div>
+      
+      {/* Visual comparison bar */}
+      {benchmark !== undefined && actual !== undefined && (
+        <div className="mt-2 mb-1.5 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div 
+            className={`h-full transition-all ${isGood ? 'bg-green-500' : 'bg-orange-400'}`}
+            style={{ width: `${barPercent}%` }}
+          />
+        </div>
+      )}
+      
       {isGood !== undefined && (
         <div className={`text-[10px] mt-1 font-medium ${isGood ? 'text-green-600' : 'text-orange-500'}`}>
           {invertColor
@@ -413,6 +437,14 @@ function MetricCard({ label, value, desc, color, benchmark, actual, invertColor 
       <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
         <div className="bg-slate-900 text-white text-[11px] rounded-lg px-3 py-2 shadow-xl max-w-[160px] leading-relaxed whitespace-normal">
           {desc}
+          {benchmark !== undefined && actual !== undefined && (
+            <div className="mt-1 text-[10px] border-t border-slate-600 pt-1">
+              {invertColor 
+                ? `${actual.toFixed(1)} vs avg ${benchmark.toFixed(1)}`
+                : `${actual.toFixed(1)} vs avg ${benchmark.toFixed(1)}`
+              }
+            </div>
+          )}
         </div>
       </div>
     </div>
