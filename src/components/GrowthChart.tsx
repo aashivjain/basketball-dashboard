@@ -12,15 +12,25 @@ export default function GrowthChart({ data, playerName, teamColor }: Props) {
   const first = data[0]
   const last = data[data.length - 1]
   const ptsDelta = last.pts - first.pts
+  const rebDelta = last.reb - first.reb
+  const astDelta = last.ast - first.ast
 
   return (
     <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-medium text-slate-600">Season-over-Season</h3>
         {data.length >= 2 && (
-          <span className={`text-xs font-medium ${ptsDelta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-            {ptsDelta >= 0 ? '↑' : '↓'} {Math.abs(ptsDelta).toFixed(1)} PPG
-          </span>
+          <div className="flex gap-3">
+            <span className={`text-xs font-medium ${ptsDelta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {ptsDelta >= 0 ? '↑' : '↓'} {Math.abs(ptsDelta).toFixed(1)} PPG
+            </span>
+            <span className={`text-xs font-medium ${rebDelta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {rebDelta >= 0 ? '↑' : '↓'} {Math.abs(rebDelta).toFixed(1)} REB
+            </span>
+            <span className={`text-xs font-medium ${astDelta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {astDelta >= 0 ? '↑' : '↓'} {Math.abs(astDelta).toFixed(1)} AST
+            </span>
+          </div>
         )}
       </div>
       <p className="text-xs text-slate-400 mb-3">{playerName}'s trajectory across {data.length} season{data.length > 1 ? 's' : ''}</p>
