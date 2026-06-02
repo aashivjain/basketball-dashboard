@@ -133,3 +133,28 @@ export interface FeverData {
   }
   seasons: Record<string, SeasonData | null>
 }
+
+export interface ForecastReason {
+  label: string
+  edge_team: string
+  detail: string
+}
+
+export interface TeamForecastEntry {
+  team_win_pct: number
+  opponent_win_pct: number
+  weighted_win_pct: number
+  reasons: ForecastReason[]
+}
+
+export interface TeamPredictionsData {
+  generated_at: string
+  season: string
+  model: {
+    name: string
+    n_estimators: number
+    max_depth: number | null
+    feature_importances: Record<string, number>
+  }
+  forecasts: Record<string, Record<'home' | 'away', Record<string, TeamForecastEntry>>>
+}

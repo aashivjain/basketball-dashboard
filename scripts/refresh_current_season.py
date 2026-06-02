@@ -11,6 +11,7 @@ Usage:
 """
 
 import json
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -25,6 +26,7 @@ from nba_api.stats.endpoints import (
 DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "fever_data.json"
 WNBA_LEAGUE_ID = "10"
 CURRENT_SEASON = "2026"
+PYTHON = sys.executable
 
 FAST_MODE = "--fast" in sys.argv
 
@@ -228,6 +230,11 @@ def main():
     data["last_updated"] = datetime.now().isoformat()
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
+
+    print("\n[4/4] Recomputing team forecast models...")
+    result = subprocess.run([PYTHON, str(Path(__file__).parent / "train_team_forecasts.py")], cwd=Path(__file__).parent.parent)
+    if result.returncode != 0:
+        print(f"WARNING: forecast recompute failed with code {result.returncode}")
 
     elapsed = (datetime.now() - start).total_seconds()
     print(f"\n{'=' * 50}")

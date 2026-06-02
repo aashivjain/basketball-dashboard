@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "train:forecasts": ".venv/Scripts/python scripts/train_team_forecasts.py",
     "refresh": ".venv/Scripts/python scripts/refresh_current_season.py",
     "refresh:fast": ".venv/Scripts/python scripts/refresh_current_season.py --fast"
   },

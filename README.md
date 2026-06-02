@@ -33,6 +33,43 @@ npm run dev
 
 Open http://localhost:5173
 
+## Run Checklist
+
+### Fresh Clone
+
+```bash
+git clone https://github.com/aashivjain/basketball-dashboard.git
+cd basketball-dashboard
+npm install
+python -m venv .venv
+.venv\Scripts\activate
+pip install nba_api requests scikit-learn numpy
+python scripts/fetch_all.py
+npm run dev
+```
+
+### Already Set Up
+
+```bash
+cd basketball-dashboard
+npm run dev
+```
+
+### Refresh Daily Data + Recompute Predictions
+
+```bash
+cd basketball-dashboard
+npm run refresh
+npm run dev
+```
+
+### Retrain Only The Random-Forest Forecasts
+
+```bash
+cd basketball-dashboard
+npm run train:forecasts
+```
+
 ## Features
 
 - **All WNBA players** — Browse by team, compare any two players league-wide

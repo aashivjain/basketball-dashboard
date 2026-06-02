@@ -31,6 +31,7 @@ def main():
     run("fetch_league_players.py", "Step 2: Fetching league-wide player stats")
     run("fetch_all_shots.py", "Step 3: Fetching shot charts for all players (all seasons)")
     run("fetch_game_logs.py", "Step 4: Fetching game logs for all players (all seasons)")
+    run("train_team_forecasts.py", "Step 5: Training random-forest team forecasts")
 
     print("\n" + "="*50)
     print("  All data fetched successfully!")

@@ -10,6 +10,7 @@ import ShotZoneBreakdown from './ShotZoneBreakdown'
 import PlayerComparison from './PlayerComparison'
 import GrowthChart from './GrowthChart'
 import AdvancedStats from './AdvancedStats'
+import NextGamePrediction from './NextGamePrediction'
 
 import rawData from '../data/fever_data.json'
 
@@ -149,9 +150,13 @@ export default function Dashboard() {
         {tab === 'compare' ? (
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
         ) : !player || !leagueAvg ? (
-          <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
+          <div className="space-y-8">
+            <NextGamePrediction block={block} season={season} seasonType={seasonType} />
+            <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
+          </div>
         ) : (
           <div className="space-y-8">
+            <NextGamePrediction block={block} season={season} seasonType={seasonType} />
             {/* player intro */}
             <div className="flex items-end gap-6 flex-wrap">
               <div>
