@@ -6,13 +6,11 @@ import rawPredictions from '../data/team_predictions.json'
 
 interface Props {
   block: SeasonBlock | null
-  season: string
-  seasonType: 'regular_season' | 'playoffs'
 }
 
 const teamPredictions = rawPredictions as TeamPredictionsData
 
-export default function NextGamePrediction({ block, season, seasonType }: Props) {
+export default function NextGamePrediction({ block }: Props) {
   const teamProfiles = useMemo(() => (block ? buildTeamProfiles(block) : []), [block])
   const [selectedTeam, setSelectedTeam] = useState(teamProfiles[0]?.team ?? 'IND')
   const [venue, setVenue] = useState<'home' | 'away'>('home')
@@ -67,9 +65,9 @@ export default function NextGamePrediction({ block, season, seasonType }: Props)
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">Dual Forecast Models</p>
-          <h2 className="text-2xl text-slate-900 mt-1">Weighted model and random-forest model</h2>
+          <h2 className="text-2xl text-slate-900 mt-1">Team predictions</h2>
           <p className="text-sm text-slate-500 mt-2 max-w-3xl">
-            Pick any WNBA team to compare the current weighted-averages forecast against a backend-trained random forest that refreshes from the API-backed data artifact.
+            Pick a team. See every matchup. Compare the quick weighted model with the daily-updated random forest.
           </p>
         </div>
 
@@ -104,73 +102,66 @@ export default function NextGamePrediction({ block, season, seasonType }: Props)
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="mt-5 grid grid-cols-1 xl:grid-cols-2 gap-3">
         <ModelSummaryCard
-          title="Weighted averages"
-          subtitle="Frontend model"
+          title="Weighted"
+          subtitle="Quick model"
           accent={focusColors.primary}
-          average={`${weightedAverage.toFixed(0)}% average win odds`}
-          strongest={strongestWeighted ? `${selectedTeam} ${strongestWeighted.weightedPrediction.teamAWinPct.toFixed(0)}% vs ${strongestWeighted.opponent.team}` : 'N/A'}
-          note="Computed directly from current team production, efficiency, turnover pressure, plus/minus, and venue."
+          average={`${weightedAverage.toFixed(0)}% avg`}
+          strongest={strongestWeighted ? `${strongestWeighted.opponent.team} ${strongestWeighted.weightedPrediction.teamAWinPct.toFixed(0)}%` : 'N/A'}
+          note="Stats-based"
         />
         <ModelSummaryCard
-          title="Random forest"
-          subtitle={`${teamPredictions.model.name} backend model`}
+          title="Random Forest"
+          subtitle="Daily model"
           accent={focusColors.secondary}
-          average={`${rfAverage.toFixed(0)}% average win odds`}
-          strongest={strongestRF ? `${selectedTeam} ${(strongestRF.rfPrediction?.team_win_pct ?? 0).toFixed(0)}% vs ${strongestRF.opponent.team}` : 'N/A'}
-          note={`Trained on ${teamPredictions.season} forecasts generated ${new Date(teamPredictions.generated_at).toLocaleString()}. ${teamPredictions.model.n_estimators} trees.`}
+          average={`${rfAverage.toFixed(0)}% avg`}
+          strongest={strongestRF ? `${strongestRF.opponent.team} ${(strongestRF.rfPrediction?.team_win_pct ?? 0).toFixed(0)}%` : 'N/A'}
+          note={`${teamPredictions.model.n_estimators} trees`}
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
         {matchupRows.map(row => {
-          const weightedFavored = row.weightedPrediction.teamAWinPct >= row.weightedPrediction.teamBWinPct
-          const rfFavored = (row.rfPrediction?.team_win_pct ?? row.weightedPrediction.teamAWinPct) >= (row.rfPrediction?.opponent_win_pct ?? row.weightedPrediction.teamBWinPct)
+          const rfTeamPct = row.rfPrediction?.team_win_pct ?? row.weightedPrediction.teamAWinPct
+          const rfOppPct = row.rfPrediction?.opponent_win_pct ?? row.weightedPrediction.teamBWinPct
 
           return (
-            <div key={row.opponent.team} className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
+            <div key={row.opponent.team} className="rounded-[18px] border border-slate-200 bg-slate-50/70 p-2.5 min-w-0">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 font-semibold">Matchup</div>
-                  <div className="text-lg font-semibold text-slate-900 mt-1">
-                    {selectedTeam} vs {row.opponent.team}
-                  </div>
-                  <div className="text-sm text-slate-500 mt-1">
-                    {venue === 'home' ? `${selectedTeam} at home` : `${selectedTeam} on the road`}
-                  </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-900 truncate">{row.opponent.team}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{venue === 'home' ? 'Home' : 'Away'}</div>
                 </div>
                 <div className="h-3 w-3 rounded-full mt-1" style={{ background: row.opponentColors.primary }} />
               </div>
 
-              <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
                 <ForecastMiniCard
-                  label="Weighted"
+                  label="WTD"
                   accent={focusColors.primary}
                   team={selectedTeam}
                   teamPct={row.weightedPrediction.teamAWinPct}
-                  opp={row.opponent.team}
                   oppPct={row.weightedPrediction.teamBWinPct}
-                  favoredText={weightedFavored ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
+                  favoredText={row.weightedPrediction.teamAWinPct >= row.weightedPrediction.teamBWinPct ? 'Favored' : 'Underdog'}
                   reasons={row.weightedPrediction.reasons.map(reason => ({
                     label: reason.label,
                     edgeTeam: reason.impact >= 0 ? selectedTeam : row.opponent.team,
-                    detail: reason.edge,
+                    detail: ultraCompactReason(reason.edge),
                   }))}
                 />
 
                 <ForecastMiniCard
-                  label="Random Forest"
+                  label="RF"
                   accent={focusColors.secondary}
                   team={selectedTeam}
-                  teamPct={row.rfPrediction?.team_win_pct ?? row.weightedPrediction.teamAWinPct}
-                  opp={row.opponent.team}
-                  oppPct={row.rfPrediction?.opponent_win_pct ?? row.weightedPrediction.teamBWinPct}
-                  favoredText={rfFavored ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
+                  teamPct={rfTeamPct}
+                  oppPct={rfOppPct}
+                  favoredText={rfTeamPct >= rfOppPct ? 'Favored' : 'Underdog'}
                   reasons={(row.rfPrediction?.reasons ?? []).map(reason => ({
                     label: reason.label,
                     edgeTeam: reason.edge_team,
-                    detail: reason.detail,
+                    detail: ultraCompactReason(reason.detail),
                   }))}
                 />
               </div>
@@ -178,13 +169,6 @@ export default function NextGamePrediction({ block, season, seasonType }: Props)
           )
         })}
       </div>
-
-      <p className="text-xs text-slate-400 mt-5 leading-5">
-        Daily flow: refresh API-backed season data, regenerate `team_predictions.json`, then the dashboard shows both the heuristic weighted model and the backend random-forest model together.
-      </p>
-      <p className="text-xs text-slate-400 mt-2 leading-5">
-        Current page context uses the loaded {season} {seasonType === 'regular_season' ? 'regular-season' : 'playoff'} dashboard data.
-      </p>
     </section>
   )
 }
@@ -205,14 +189,14 @@ function ModelSummaryCard({
   note: string
 }) {
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-white p-5">
-      <div className="text-[11px] uppercase tracking-[0.18em] font-semibold" style={{ color: accent }}>{subtitle}</div>
-      <div className="text-xl text-slate-900 mt-1">{title}</div>
-      <div className="mt-4 space-y-3">
-        <InsightRow label="Average win probability" value={average} accent={accent} />
-        <InsightRow label="Best current matchup" value={strongest} accent={accent} />
+    <div className="rounded-[18px] border border-slate-200 bg-white p-3 min-w-0">
+      <div className="text-[10px] uppercase tracking-[0.14em] font-semibold" style={{ color: accent }}>{subtitle}</div>
+      <div className="text-sm font-semibold text-slate-900 mt-1">{title}</div>
+      <div className="mt-2.5 space-y-2">
+        <InsightRow label="Average" value={average} accent={accent} />
+        <InsightRow label="Best matchup" value={strongest} accent={accent} />
       </div>
-      <p className="text-xs text-slate-400 mt-4 leading-5">{note}</p>
+      <p className="text-[9px] text-slate-400 mt-2 leading-4">{note}</p>
     </div>
   )
 }
@@ -222,7 +206,6 @@ function ForecastMiniCard({
   accent,
   team,
   teamPct,
-  opp,
   oppPct,
   favoredText,
   reasons,
@@ -231,40 +214,38 @@ function ForecastMiniCard({
   accent: string
   team: string
   teamPct: number
-  opp: string
   oppPct: number
   favoredText: string
   reasons: { label: string; edgeTeam: string; detail: string }[]
 }) {
   return (
-    <div className="rounded-[20px] border border-slate-200 bg-white p-4">
+    <div className="rounded-[14px] border border-slate-200 bg-white p-2 min-w-0">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 font-semibold">{label}</div>
-          <div className="text-sm font-semibold mt-1" style={{ color: accent }}>{favoredText}</div>
+        <div className="min-w-0">
+          <div className="text-[9px] uppercase tracking-[0.12em] text-slate-400 font-semibold">{label}</div>
+          <div className="text-[10px] font-semibold mt-1 truncate" style={{ color: accent }}>{favoredText}</div>
         </div>
-        <div className="text-right">
-          <div className="text-3xl font-semibold leading-none" style={{ color: accent }}>{teamPct.toFixed(0)}%</div>
-          <div className="text-xs text-slate-400 mt-1">{team} win odds</div>
+        <div className="text-right shrink-0">
+          <div className="text-lg font-semibold leading-none" style={{ color: accent }}>{teamPct.toFixed(0)}%</div>
+          <div className="text-[9px] text-slate-400 mt-1">{team}</div>
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+      <div className="mt-2.5">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
           <div className="h-full rounded-full" style={{ width: `${teamPct}%`, background: accent }} />
         </div>
-        <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-          <span>{team} {teamPct.toFixed(0)}%</span>
-          <span>{opp} {oppPct.toFixed(0)}%</span>
+        <div className="mt-1 flex items-center justify-between text-[9px] text-slate-500">
+          <span>{teamPct.toFixed(0)}%</span>
+          <span>{oppPct.toFixed(0)}%</span>
         </div>
       </div>
 
-      <div className="mt-4 space-y-2">
-        {reasons.slice(0, 3).map(reason => (
-          <div key={`${label}-${reason.label}`} className="rounded-xl bg-slate-50 px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400 font-semibold">{reason.label}</div>
-            <div className="text-xs font-semibold mt-1" style={{ color: accent }}>{reason.edgeTeam} edge</div>
-            <div className="text-sm text-slate-600 mt-1 leading-5">{reason.detail}</div>
+      <div className="mt-2.5 space-y-1.5">
+        {reasons.slice(0, 1).map(reason => (
+          <div key={`${label}-${reason.label}`} className="rounded-lg bg-slate-50 px-2 py-1.5 min-w-0">
+            <div className="text-[9px] uppercase tracking-[0.12em] text-slate-400 font-semibold">{reason.label}</div>
+            <div className="text-[10px] font-semibold mt-1 leading-4 break-words" style={{ color: accent }}>{reason.detail}</div>
           </div>
         ))}
       </div>
@@ -274,9 +255,26 @@ function ForecastMiniCard({
 
 function InsightRow({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400 font-semibold">{label}</div>
-      <div className="text-sm font-semibold mt-1" style={{ color: accent }}>{value}</div>
+    <div className="rounded-2xl bg-slate-50 px-3 py-2.5 min-w-0">
+      <div className="text-[9px] uppercase tracking-[0.12em] text-slate-400 font-semibold">{label}</div>
+      <div className="text-[11px] font-semibold mt-1 leading-4 break-words" style={{ color: accent }}>{value}</div>
     </div>
   )
+}
+
+function ultraCompactReason(text: string) {
+  return text
+    .replace(' currently leans toward ', ' ')
+    .replace('Average margin ', '+/- ')
+    .replace('Scoring volume ', 'PTS ')
+    .replace('Rebounding ', 'REB ')
+    .replace('Turnover control ', 'TOV ')
+    .replace('Field-goal efficiency ', 'FG ')
+    .replace('3-point shooting ', '3PT ')
+    .replace('Free-throw shooting ', 'FT ')
+    .replace('Home court', 'Home')
+    .replace(' -> ', ' ')
+    .replace(' has home court in this scenario.', ' edge')
+    .replace(' win rate vs ', ' vs ')
+    .replace('Last 5: ', '')
 }

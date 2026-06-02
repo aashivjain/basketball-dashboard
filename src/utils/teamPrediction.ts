@@ -4,7 +4,6 @@ export interface TeamProfile {
   team: string
   players: LeaguePlayer[]
   corePlayers: LeaguePlayer[]
-  averageMinutes: number
   weighted: {
     pts: number
     reb: number
@@ -45,12 +44,29 @@ export interface MatchupPrediction {
   teamBScore: number
 }
 
+type TeamGameAggregate = {
+  game_date: string
+  matchup: string
+  wl: string
+  pts: number
+  reb: number
+  ast: number
+  tov: number
+  fgm: number
+  fga: number
+  fg3m: number
+  fg3a: number
+  ftm: number
+  fta: number
+  plus_minus: number
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0
+function average(values: number[], fallback = 0) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback
 }
 
 function parseGameDate(value: string) {
@@ -58,24 +74,84 @@ function parseGameDate(value: string) {
   return Number.isNaN(time) ? 0 : time
 }
 
-function sortByRecent(games: GameLog[]) {
+function sortByRecent<T extends { game_date: string }>(games: T[]) {
   return [...games].sort((a, b) => parseGameDate(b.game_date) - parseGameDate(a.game_date))
 }
 
-function winPct(games: GameLog[]) {
+function winPct(games: Array<{ wl: string }>) {
   if (!games.length) return 0.5
   return games.filter(game => game.wl === 'W').length / games.length
 }
 
-function teamGames(team: string, block: SeasonBlock) {
-  const teamPlayers = block.all_players
-    .filter(player => player.team === team)
-    .sort((a, b) => b.gp - a.gp || b.min - a.min)
+function aggregateTeamGames(team: string, block: SeasonBlock) {
+  const teamPlayerIds = new Set(
+    block.all_players
+      .filter(player => player.team === team)
+      .map(player => String(player.player_id))
+  )
 
-  const primaryPlayer = teamPlayers[0]
-  if (!primaryPlayer) return []
+  const grouped = new Map<string, TeamGameAggregate>()
 
-  return sortByRecent(block.game_logs[String(primaryPlayer.player_id)] ?? [])
+  for (const playerId of teamPlayerIds) {
+    const logs = block.game_logs[playerId] ?? []
+    for (const game of logs) {
+      const key = `${game.game_date}|${game.matchup}`
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          game_date: game.game_date,
+          matchup: game.matchup,
+          wl: game.wl,
+          pts: 0,
+          reb: 0,
+          ast: 0,
+          tov: 0,
+          fgm: 0,
+          fga: 0,
+          fg3m: 0,
+          fg3a: 0,
+          ftm: 0,
+          fta: 0,
+          plus_minus: 0,
+        })
+      }
+
+      const row = grouped.get(key)!
+      row.pts += game.pts
+      row.reb += game.reb
+      row.ast += game.ast
+      row.tov += game.tov
+      row.fgm += game.fgm
+      row.fga += game.fga
+      row.fg3m += game.fg3m
+      row.fg3a += game.fg3a
+      row.ftm += game.ftm
+      row.fta += game.fta
+      row.plus_minus += game.plus_minus
+    }
+  }
+
+  return sortByRecent(Array.from(grouped.values())).map(game => ({
+    game_date: game.game_date,
+    matchup: game.matchup,
+    wl: game.wl,
+    min: 0,
+    pts: game.pts,
+    reb: game.reb,
+    ast: game.ast,
+    stl: 0,
+    blk: 0,
+    tov: game.tov,
+    fgm: game.fgm,
+    fga: game.fga,
+    fg_pct: game.fga ? game.fgm / game.fga : 0,
+    fg3m: game.fg3m,
+    fg3a: game.fg3a,
+    fg3_pct: game.fg3a ? game.fg3m / game.fg3a : 0,
+    ftm: game.ftm,
+    fta: game.fta,
+    ft_pct: game.fta ? game.ftm / game.fta : 0,
+    plus_minus: game.plus_minus,
+  })) satisfies GameLog[]
 }
 
 export function buildTeamProfiles(block: SeasonBlock) {
@@ -87,32 +163,26 @@ export function buildTeamProfiles(block: SeasonBlock) {
       .sort((a, b) => b.min - a.min)
 
     const corePlayers = players.slice(0, 8)
-    const averageMinutes = average(corePlayers.map(player => player.min)) || 1
-
-    const weightedAverage = (key: keyof Pick<LeaguePlayer, 'pts' | 'reb' | 'ast' | 'tov' | 'fg_pct' | 'fg3_pct' | 'ft_pct' | 'plus_minus'>) =>
-      corePlayers.reduce((sum, player) => sum + player[key] * player.min, 0) / corePlayers.reduce((sum, player) => sum + player.min, 0)
-
-    const games = teamGames(team, block)
-    const wins = games.filter(game => game.wl === 'W').length
-    const losses = games.length - wins
+    const games = aggregateTeamGames(team, block)
     const recentGames = games.slice(0, 5)
     const homeGames = games.filter(game => game.matchup.includes('vs.'))
     const awayGames = games.filter(game => game.matchup.includes('@'))
+    const wins = games.filter(game => game.wl === 'W').length
+    const losses = games.length - wins
 
     return {
       team,
       players,
       corePlayers,
-      averageMinutes,
       weighted: {
-        pts: weightedAverage('pts'),
-        reb: weightedAverage('reb'),
-        ast: weightedAverage('ast'),
-        tov: weightedAverage('tov'),
-        fg_pct: weightedAverage('fg_pct'),
-        fg3_pct: weightedAverage('fg3_pct'),
-        ft_pct: weightedAverage('ft_pct'),
-        plus_minus: weightedAverage('plus_minus'),
+        pts: average(games.map(game => game.pts), 80),
+        reb: average(games.map(game => game.reb), 32),
+        ast: average(games.map(game => game.ast), 18),
+        tov: average(games.map(game => game.tov), 14),
+        fg_pct: average(games.map(game => game.fg_pct), 0.43),
+        fg3_pct: average(games.map(game => game.fg3_pct), 0.32),
+        ft_pct: average(games.map(game => game.ft_pct), 0.78),
+        plus_minus: average(games.map(game => game.plus_minus), 0),
       },
       games,
       wins,
@@ -125,77 +195,70 @@ export function buildTeamProfiles(block: SeasonBlock) {
   })
 }
 
-export function predictMatchup(
-  teamA: TeamProfile,
-  teamB: TeamProfile,
-  gameContext: 'home' | 'away' = 'home'
-) {
+export function predictMatchup(teamA: TeamProfile, teamB: TeamProfile, gameContext: 'home' | 'away' = 'home') {
   const homeTeam = gameContext === 'home' ? teamA.team : teamB.team
   const awayTeam = gameContext === 'home' ? teamB.team : teamA.team
 
-  const teamABase =
-    teamA.weighted.plus_minus * 6 +
-    teamA.weighted.pts * 1.2 +
-    teamA.weighted.reb * 0.9 +
-    teamA.weighted.ast * 1.4 -
-    teamA.weighted.tov * 1.3 +
-    teamA.weighted.fg_pct * 100 * 0.8 +
-    teamA.weighted.fg3_pct * 100 * 0.45 +
-    teamA.weighted.ft_pct * 100 * 0.15
+  const scoringEdge = (teamA.weighted.pts - teamB.weighted.pts) / 12
+  const reboundingEdge = (teamA.weighted.reb - teamB.weighted.reb) / 8
+  const playmakingEdge = (teamA.weighted.ast - teamB.weighted.ast) / 7
+  const turnoverEdge = (teamB.weighted.tov - teamA.weighted.tov) / 6
+  const fgEdge = (teamA.weighted.fg_pct - teamB.weighted.fg_pct) / 0.08
+  const fg3Edge = (teamA.weighted.fg3_pct - teamB.weighted.fg3_pct) / 0.1
+  const ftEdge = (teamA.weighted.ft_pct - teamB.weighted.ft_pct) / 0.12
+  const marginEdge = (teamA.weighted.plus_minus - teamB.weighted.plus_minus) / 15
+  const formEdge = (teamA.winPct - teamB.winPct) / 0.35
+  const recentEdge = (teamA.recentWinPct - teamB.recentWinPct) / 0.45
+  const venueEdge =
+    (gameContext === 'home' ? 0.3 : -0.3) +
+    (((gameContext === 'home' ? teamA.homeWinPct : teamA.awayWinPct) - (gameContext === 'home' ? teamB.awayWinPct : teamB.homeWinPct)) / 0.4)
 
-  const teamBBase =
-    teamB.weighted.plus_minus * 6 +
-    teamB.weighted.pts * 1.2 +
-    teamB.weighted.reb * 0.9 +
-    teamB.weighted.ast * 1.4 -
-    teamB.weighted.tov * 1.3 +
-    teamB.weighted.fg_pct * 100 * 0.8 +
-    teamB.weighted.fg3_pct * 100 * 0.45 +
-    teamB.weighted.ft_pct * 100 * 0.15
+  const teamAScore =
+    scoringEdge * 1.1 +
+    reboundingEdge * 0.65 +
+    playmakingEdge * 0.75 +
+    turnoverEdge * 0.85 +
+    fgEdge * 1.1 +
+    fg3Edge * 0.7 +
+    ftEdge * 0.35 +
+    marginEdge * 0.9 +
+    formEdge * 1.2 +
+    recentEdge * 0.7 +
+    venueEdge * 0.55
 
-  const teamAVenueBoost = gameContext === 'home'
-    ? (teamA.homeWinPct - teamA.awayWinPct) * 20 + 4
-    : (teamA.awayWinPct - teamA.homeWinPct) * 20 - 4
+  const teamBScore = -teamAScore
 
-  const teamBVenueBoost = gameContext === 'away'
-    ? (teamB.homeWinPct - teamB.awayWinPct) * 20 + 4
-    : (teamB.awayWinPct - teamB.homeWinPct) * 20 - 4
-
-  const teamARecentBoost = (teamA.recentWinPct - teamA.winPct) * 18
-  const teamBRecentBoost = (teamB.recentWinPct - teamB.winPct) * 18
-
-  const teamAScore = teamABase + teamAVenueBoost + teamARecentBoost
-  const teamBScore = teamBBase + teamBVenueBoost + teamBRecentBoost
-
-  const differential = teamAScore - teamBScore
-  const teamAWinPct = clamp(50 + differential * 1.35, 8, 92)
+  const differential = teamAScore
+  const teamAWinPct = clamp(50 + differential * 6.5, 28, 72)
   const teamBWinPct = 100 - teamAWinPct
 
   const reasons: PredictionReason[] = [
     {
-      label: 'Season form',
-      edge: `${(teamA.winPct * 100).toFixed(0)}% win rate vs ${(teamB.winPct * 100).toFixed(0)}%`,
-      impact: (teamA.winPct - teamB.winPct) * 100,
+      label: 'Form',
+      edge: `${(teamA.winPct * 100).toFixed(0)}% vs ${(teamB.winPct * 100).toFixed(0)}%`,
+      impact: formEdge * 1.2 + recentEdge * 0.7,
     },
     {
-      label: 'Recent momentum',
-      edge: `Last 5: ${(teamA.recentWinPct * 100).toFixed(0)}% vs ${(teamB.recentWinPct * 100).toFixed(0)}%`,
-      impact: (teamA.recentWinPct - teamB.recentWinPct) * 100,
+      label: 'Scoring',
+      edge: `${teamA.weighted.pts.toFixed(1)} vs ${teamB.weighted.pts.toFixed(1)} PPG`,
+      impact: scoringEdge * 1.1,
     },
     {
-      label: 'Shot quality',
-      edge: `${(teamA.weighted.fg_pct * 100).toFixed(1)} FG% / ${(teamA.weighted.fg3_pct * 100).toFixed(1)} 3P% vs ${(teamB.weighted.fg_pct * 100).toFixed(1)} / ${(teamB.weighted.fg3_pct * 100).toFixed(1)}`,
-      impact: (teamA.weighted.fg_pct - teamB.weighted.fg_pct) * 120 + (teamA.weighted.fg3_pct - teamB.weighted.fg3_pct) * 70,
+      label: 'Shooting',
+      edge: `${(teamA.weighted.fg_pct * 100).toFixed(1)}% vs ${(teamB.weighted.fg_pct * 100).toFixed(1)}% FG`,
+      impact: fgEdge * 1.1 + fg3Edge * 0.7,
     },
     {
-      label: 'Creation vs turnovers',
-      edge: `${teamA.weighted.ast.toFixed(1)} AST and ${teamA.weighted.tov.toFixed(1)} TOV vs ${teamB.weighted.ast.toFixed(1)} / ${teamB.weighted.tov.toFixed(1)}`,
-      impact: (teamA.weighted.ast - teamB.weighted.ast) * 6 - (teamA.weighted.tov - teamB.weighted.tov) * 5,
+      label: 'Possession',
+      edge: `${teamA.weighted.reb.toFixed(1)} REB / ${teamA.weighted.tov.toFixed(1)} TOV vs ${teamB.weighted.reb.toFixed(1)} / ${teamB.weighted.tov.toFixed(1)}`,
+      impact: reboundingEdge * 0.65 + turnoverEdge * 0.85,
     },
     {
-      label: 'Glass and margin',
-      edge: `${teamA.weighted.reb.toFixed(1)} REB and ${teamA.weighted.plus_minus.toFixed(1)} +/- vs ${teamB.weighted.reb.toFixed(1)} / ${teamB.weighted.plus_minus.toFixed(1)}`,
-      impact: (teamA.weighted.reb - teamB.weighted.reb) * 4 + (teamA.weighted.plus_minus - teamB.weighted.plus_minus) * 8,
+      label: 'Venue',
+      edge: gameContext === 'home'
+        ? `${teamA.team} home ${(teamA.homeWinPct * 100).toFixed(0)}% vs ${teamB.team} road ${(teamB.awayWinPct * 100).toFixed(0)}%`
+        : `${teamA.team} road ${(teamA.awayWinPct * 100).toFixed(0)}% vs ${teamB.team} home ${(teamB.homeWinPct * 100).toFixed(0)}%`,
+      impact: venueEdge * 0.55,
     },
   ]
     .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))

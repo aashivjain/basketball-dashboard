@@ -23,7 +23,8 @@ export default function Dashboard() {
   const [playerId, setPlayerId] = useState<number | null>(null)
   const [compareId, setCompareId] = useState<number | null>(null)
   const [showCompare, setShowCompare] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'compare'>('overview')
+  const [section, setSection] = useState<'players' | 'teams'>('players')
+  const [playerTab, setPlayerTab] = useState<'overview' | 'compare'>('overview')
 
   const seasonData = data.seasons[season] as SeasonData | null
   const block = seasonData ? seasonData[seasonType] : null
@@ -80,26 +81,24 @@ export default function Dashboard() {
   }, [player, allPlayers])
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: teamColor ? teamColor.bg : '#fafafa' }}>
-      {/* Standard neutral header */}
+    <div className="min-h-screen transition-colors duration-500" style={{ background: section === 'players' && teamColor ? teamColor.bg : '#fafafa' }}>
       <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/60" style={{ background: 'rgba(255,255,255,0.95)' }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-5 flex-wrap">
           <h1 className="text-xl tracking-tight mr-auto font-semibold" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>
             WNBA Analytics
           </h1>
 
-          <nav className="flex gap-2 text-sm">
+          <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
             <button
-              onClick={() => setTab('overview')}
-              className="transition-all"
-              style={{ color: tab === 'overview' ? '#1e293b' : '#94a3b8', fontWeight: tab === 'overview' ? 600 : 400 }}
-            >Overview</button>
-            <span className="text-slate-300">|</span>
+              onClick={() => setSection('players')}
+              className="rounded-full px-3 py-1.5 transition-all"
+              style={{ background: section === 'players' ? '#1e293b' : 'transparent', color: section === 'players' ? '#fff' : '#64748b', fontWeight: 600 }}
+            >Players</button>
             <button
-              onClick={() => setTab('compare')}
-              className="transition-all"
-              style={{ color: tab === 'compare' ? '#1e293b' : '#94a3b8', fontWeight: tab === 'compare' ? 600 : 400 }}
-            >Compare</button>
+              onClick={() => setSection('teams')}
+              className="rounded-full px-3 py-1.5 transition-all"
+              style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
+            >Teams</button>
           </nav>
 
           <div className="flex items-center gap-2 text-sm">
@@ -128,36 +127,51 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <select
-            value={playerId ?? ''}
-            onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
-            className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all text-center appearance-none"
-            style={{ border: '1.5px solid #cbd5e1', background: 'white', color: '#334155', minWidth: '160px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
-          >
-            <option value="" disabled>Choose player</option>
-            {playersByTeam.map(([team, players]) => (
-              <optgroup key={team} label={team}>
-                {players.map(p => (
-                  <option key={p.player_id} value={p.player_id}>{p.name}</option>
+          {section === 'players' && (
+            <>
+              <nav className="flex gap-2 text-sm">
+                <button
+                  onClick={() => setPlayerTab('overview')}
+                  className="transition-all"
+                  style={{ color: playerTab === 'overview' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'overview' ? 600 : 400 }}
+                >Overview</button>
+                <span className="text-slate-300">|</span>
+                <button
+                  onClick={() => setPlayerTab('compare')}
+                  className="transition-all"
+                  style={{ color: playerTab === 'compare' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'compare' ? 600 : 400 }}
+                >Compare</button>
+              </nav>
+
+              <select
+                value={playerId ?? ''}
+                onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
+                className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all text-center appearance-none"
+                style={{ border: '1.5px solid #cbd5e1', background: 'white', color: '#334155', minWidth: '160px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+              >
+                <option value="" disabled>Choose player</option>
+                {playersByTeam.map(([team, players]) => (
+                  <optgroup key={team} label={team}>
+                    {players.map(p => (
+                      <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                    ))}
+                  </optgroup>
                 ))}
-              </optgroup>
-            ))}
-          </select>
+              </select>
+            </>
+          )}
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {tab === 'compare' ? (
+        {section === 'teams' ? (
+          <NextGamePrediction block={block} />
+        ) : playerTab === 'compare' ? (
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
         ) : !player || !leagueAvg ? (
-          <div className="space-y-8">
-            <NextGamePrediction block={block} season={season} seasonType={seasonType} />
-            <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
-          </div>
+          <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
         ) : (
           <div className="space-y-8">
-            <NextGamePrediction block={block} season={season} seasonType={seasonType} />
-            {/* player intro */}
             <div className="flex items-end gap-6 flex-wrap">
               <div>
                 <p className="text-sm uppercase tracking-widest mb-1 font-medium" style={{ color: teamColor?.primary ?? '#64748b', fontFamily: "'Inter', sans-serif" }}>{player.team}</p>
