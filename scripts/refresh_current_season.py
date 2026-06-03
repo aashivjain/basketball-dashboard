@@ -14,6 +14,7 @@ import json
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -29,6 +30,10 @@ CURRENT_SEASON = "2026"
 PYTHON = sys.executable
 
 FAST_MODE = "--fast" in sys.argv
+SHOT_RETRY_ATTEMPTS = 4
+SHOT_RETRY_BASE_DELAY = 4
+SHOT_REQUEST_TIMEOUT = 60
+SHOT_CHART_WORKERS = 3
 
 
 def fetch_all_players(season, season_type="Regular Season"):
@@ -112,33 +117,53 @@ def fetch_game_log(player_id, season):
 
 
 def fetch_shot_chart(player_id, season):
-    shots = shotchartdetail.ShotChartDetail(
-        team_id=0,
-        player_id=player_id,
-        season_nullable=season,
-        season_type_all_star="Regular Season",
-        league_id=WNBA_LEAGUE_ID,
-        context_measure_simple="FGA",
-        timeout=30,
-    )
-    time.sleep(0.6)
+    last_error = None
 
-    shot_list = shots.get_normalized_dict()["Shot_Chart_Detail"]
-    out = []
-    for s in shot_list:
-        out.append({
-            "game_date": s.get("GAME_DATE", ""),
-            "shot_type": s["ACTION_TYPE"],
-            "shot_zone": s["SHOT_ZONE_BASIC"],
-            "shot_zone_area": s.get("SHOT_ZONE_AREA", ""),
-            "shot_zone_range": s.get("SHOT_ZONE_RANGE", ""),
-            "shot_distance": s["SHOT_DISTANCE"],
-            "x": s["LOC_X"],
-            "y": s["LOC_Y"],
-            "made": s["SHOT_MADE_FLAG"] == 1,
-            "quarter": s.get("PERIOD", 0),
-        })
-    return out
+    for attempt in range(1, SHOT_RETRY_ATTEMPTS + 1):
+        try:
+            shots = shotchartdetail.ShotChartDetail(
+                team_id=0,
+                player_id=player_id,
+                season_nullable=season,
+                season_type_all_star="Regular Season",
+                league_id=WNBA_LEAGUE_ID,
+                context_measure_simple="FGA",
+                timeout=SHOT_REQUEST_TIMEOUT,
+            )
+            time.sleep(0.25)
+
+            shot_list = shots.get_normalized_dict()["Shot_Chart_Detail"]
+            out = []
+            for s in shot_list:
+                out.append({
+                    "game_date": s.get("GAME_DATE", ""),
+                    "shot_type": s["ACTION_TYPE"],
+                    "shot_zone": s["SHOT_ZONE_BASIC"],
+                    "shot_zone_area": s.get("SHOT_ZONE_AREA", ""),
+                    "shot_zone_range": s.get("SHOT_ZONE_RANGE", ""),
+                    "shot_distance": s["SHOT_DISTANCE"],
+                    "x": s["LOC_X"],
+                    "y": s["LOC_Y"],
+                    "made": s["SHOT_MADE_FLAG"] == 1,
+                    "quarter": s.get("PERIOD", 0),
+                })
+            return out
+        except Exception as error:
+            last_error = error
+            if attempt == SHOT_RETRY_ATTEMPTS:
+                break
+
+            delay = SHOT_RETRY_BASE_DELAY * attempt
+            print(f"      Retry {attempt}/{SHOT_RETRY_ATTEMPTS - 1} for shot chart {player_id} after error: {error}")
+            time.sleep(delay)
+
+    raise last_error
+
+
+def fetch_shot_chart_job(player, season):
+    pid = str(player["player_id"])
+    charts = fetch_shot_chart(player["player_id"], season)
+    return pid, player["name"], charts
 
 
 def main():
@@ -204,22 +229,35 @@ def main():
         print(f"\n[3/3] Refreshing shot charts for {len(stale_pids)} updated players...")
         shot_charts = dict(old_shot_charts)  # keep existing, overwrite stale
         errors = 0
-        for i, p in enumerate(stale_pids):
-            pid = str(p["player_id"])
-            try:
-                charts = fetch_shot_chart(p["player_id"], CURRENT_SEASON)
-                shot_charts[pid] = charts
-                if (i + 1) % 25 == 0:
-                    print(f"      {i + 1}/{len(stale_pids)} done...")
-                    # Save progress
+        completed = 0
+        with ThreadPoolExecutor(max_workers=SHOT_CHART_WORKERS) as executor:
+            future_map = {
+                executor.submit(fetch_shot_chart_job, player, CURRENT_SEASON): player
+                for player in stale_pids
+            }
+
+            for future in as_completed(future_map):
+                player = future_map[future]
+                pid = str(player["player_id"])
+                completed += 1
+                try:
+                    fetched_pid, _player_name, charts = future.result()
+                    shot_charts[fetched_pid] = charts
+                except Exception as e:
+                    print(f"      ERROR: {player['name']} - {e}")
+                    print("      Keeping previous shot chart data for this player and continuing.")
+                    if pid not in shot_charts:
+                        shot_charts[pid] = []
+                    errors += 1
+
+                if completed % 10 == 0:
                     reg["shot_charts"] = shot_charts
                     with open(DATA_FILE, "w") as f:
                         json.dump(data, f)
-            except Exception as e:
-                print(f"      ERROR: {p['name']} - {e}")
-                if pid not in shot_charts:
-                    shot_charts[pid] = []
-                errors += 1
+                    print(f"      Saved shot chart progress at {completed}/{len(stale_pids)} players...")
+
+                if completed % 25 == 0:
+                    print(f"      {completed}/{len(stale_pids)} done...")
 
         reg["shot_charts"] = shot_charts
         print(f"      Done. {len(stale_pids) - errors} updated, {errors} errors.")

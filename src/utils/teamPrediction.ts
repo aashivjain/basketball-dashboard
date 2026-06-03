@@ -65,6 +65,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
+function sigmoid(value: number) {
+  return 1 / (1 + Math.exp(-value))
+}
+
 function average(values: number[], fallback = 0) {
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback
 }
@@ -229,7 +233,7 @@ export function predictMatchup(teamA: TeamProfile, teamB: TeamProfile, gameConte
   const teamBScore = -teamAScore
 
   const differential = teamAScore
-  const teamAWinPct = clamp(50 + differential * 6.5, 28, 72)
+  const teamAWinPct = clamp(sigmoid(differential * 0.15) * 100, 22, 78)
   const teamBWinPct = 100 - teamAWinPct
 
   const reasons: PredictionReason[] = [
