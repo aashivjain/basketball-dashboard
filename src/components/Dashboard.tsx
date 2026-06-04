@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import type { FeverData, SeasonData, LeaguePlayer } from '../types'
+import type { WnbaDashboardData, SeasonData, LeaguePlayer } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
 import ShotChart from './ShotChart'
@@ -12,9 +12,9 @@ import GrowthChart from './GrowthChart'
 import AdvancedStats from './AdvancedStats'
 import NextGamePrediction from './NextGamePrediction'
 
-import rawData from '../data/fever_data.json'
+import rawData from '../data/wnba_data.json'
 
-const data = rawData as unknown as FeverData
+const data = rawData as unknown as WnbaDashboardData
 const availableSeasons = Object.keys(data.seasons).filter(s => data.seasons[s] !== null).sort()
 
 export default function Dashboard() {

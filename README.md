@@ -92,7 +92,7 @@ npm run train:forecasts
 ```
 src/
 ├── components/   # Dashboard, PlayerCard, ShotChart, StatsRadar, etc.
-├── data/         # fever_data.json (generated, gitignored)
+├── data/         # wnba_data.json (generated, gitignored)
 ├── types/        # TypeScript interfaces
 └── utils/        # Team colors, stat helpers
 scripts/

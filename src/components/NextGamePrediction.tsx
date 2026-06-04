@@ -23,6 +23,10 @@ export default function NextGamePrediction({ block }: Props) {
 
   const focusTeam = teamProfiles.find(team => team.team === selectedTeam) ?? null
   const focusColors = getTeamColors(selectedTeam)
+  const rosterSignals = useMemo(() => {
+    if (!focusTeam || !block) return null
+    return analyzeTeamRoster(focusTeam, block)
+  }, [block, focusTeam])
 
   const matchupRows = useMemo(() => {
     if (!focusTeam) return []
@@ -94,6 +98,27 @@ export default function NextGamePrediction({ block }: Props) {
       </div>
 
       <div className="mt-5 rounded-[22px] border border-slate-200 overflow-hidden">
+        {rosterSignals && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-b border-slate-200 bg-slate-50/70">
+            <RosterCard
+              title="Most Valuable"
+              subtitle="Biggest win driver"
+              player={rosterSignals.mostValuable.player.name}
+              detail={rosterSignals.mostValuable.detail}
+              accent={focusColors.primary}
+              statline={rosterSignals.mostValuable.statline}
+            />
+            <RosterCard
+              title="Chopping Block"
+              subtitle="Tradeable rotation piece"
+              player={rosterSignals.choppingBlock.player.name}
+              detail={rosterSignals.choppingBlock.detail}
+              accent={focusColors.secondary}
+              statline={rosterSignals.choppingBlock.statline}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-[90px_1fr_1fr] gap-4 bg-slate-50 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
           <div>Opponent</div>
           <div>Weighted</div>
@@ -132,6 +157,32 @@ export default function NextGamePrediction({ block }: Props) {
         </div>
       </div>
     </section>
+  )
+}
+
+function RosterCard({
+  title,
+  subtitle,
+  player,
+  detail,
+  accent,
+  statline,
+}: {
+  title: string
+  subtitle: string
+  player: string
+  detail: string
+  accent: string
+  statline: string
+}) {
+  return (
+    <div className="p-4 md:p-5 first:border-b md:first:border-b-0 md:first:border-r border-slate-200">
+      <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>{title}</div>
+      <div className="text-[10px] text-slate-400 mt-1">{subtitle}</div>
+      <div className="text-lg font-semibold text-slate-900 mt-2">{player}</div>
+      <div className="text-sm text-slate-500 mt-1">{statline}</div>
+      <div className="text-sm text-slate-600 mt-3 leading-5">{detail}</div>
+    </div>
   )
 }
 
@@ -184,4 +235,92 @@ function compactReason(text: string) {
     .replace('Field-goal efficiency', 'FG')
     .replace('3-point shooting', '3PT')
     .replace('Free-throw shooting', 'FT')
+}
+
+function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>, block: SeasonBlock) {
+  const eligiblePlayers = team.players.filter(player => player.gp >= 3)
+  const playerSignals = eligiblePlayers.map(player => {
+    const logs = block.game_logs[String(player.player_id)] ?? []
+    const wins = logs.filter(game => game.wl === 'W')
+    const losses = logs.filter(game => game.wl === 'L')
+    const average = (values: number[], fallback = 0) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback
+    const ts = player.fga + 0.44 * player.fta > 0 ? player.pts / (2 * (player.fga + 0.44 * player.fta)) : 0
+    const efg = player.fga > 0 ? (player.fgm + 0.5 * player.fg3m) / player.fga : 0
+    const astTov = player.tov > 0 ? player.ast / player.tov : player.ast
+    const defense = player.stl * 1.6 + player.blk * 1.5 + player.dreb * 0.45 + player.oreb * 0.35
+    const winLift = average(wins.map(game => game.plus_minus), player.plus_minus) - average(losses.map(game => game.plus_minus), player.plus_minus)
+    const scoringDelta = average(wins.map(game => game.pts), player.pts) - average(losses.map(game => game.pts), player.pts)
+    const efficiencyDelta = average(wins.map(game => game.fg_pct), player.fg_pct) - average(losses.map(game => game.fg_pct), player.fg_pct)
+    const usage = player.min > 0 ? (player.fga + 0.44 * player.fta + player.tov) / player.min : 0
+
+    const impactScore =
+      player.pts * 0.9 +
+      player.reb * 0.7 +
+      player.ast * 1.05 +
+      defense +
+      player.plus_minus * 0.9 +
+      ts * 14 +
+      efg * 10 +
+      astTov * 2.8 +
+      winLift * 1.2 +
+      efficiencyDelta * 18 +
+      scoringDelta * 0.45
+
+    const tradeValueScore =
+      player.min * 0.4 +
+      player.pts * 0.85 +
+      player.reb * 0.45 +
+      player.ast * 0.75 +
+      player.fg_pct * 10 +
+      player.fg3_pct * 8 +
+      ts * 12 +
+      usage * 18
+
+    const choppingRisk =
+      player.plus_minus * -0.9 +
+      Math.max(0, 0.54 - ts) * 22 +
+      Math.max(0, 0.5 - efg) * 16 +
+      Math.max(0, 1.4 - astTov) * 5 +
+      Math.max(0, 1.0 - defense / 4) * 4 +
+      Math.max(0, -winLift) * 1.4
+
+    return {
+      player,
+      ts,
+      efg,
+      astTov,
+      defense,
+      winLift,
+      impactScore,
+      tradeValueScore,
+      choppingScore: tradeValueScore + choppingRisk,
+    }
+  })
+
+  const mostValuable = [...playerSignals]
+    .sort((a, b) => b.impactScore - a.impactScore)[0]
+
+  const choppingPool = playerSignals.filter(signal =>
+    signal.player.min >= 12 &&
+    signal.player.gp >= 5 &&
+    signal.player.min < 30 &&
+    signal.impactScore < mostValuable.impactScore * 0.82 &&
+    signal.tradeValueScore > 20
+  )
+
+  const choppingBlock = [...(choppingPool.length ? choppingPool : playerSignals.filter(signal => signal.player.min >= 10))]
+    .sort((a, b) => b.choppingScore - a.choppingScore)[0]
+
+  return {
+    mostValuable: {
+      player: mostValuable.player,
+      statline: `${mostValuable.player.pts.toFixed(1)} PTS • ${(mostValuable.ts * 100).toFixed(0)} TS% • ${mostValuable.player.plus_minus.toFixed(1)} +/-`,
+      detail: `${mostValuable.player.name.split(' ')[0]} grades highest once scoring is adjusted for efficiency, defense, ball security, and how strongly their performances track with winning possessions and margin.`,
+    },
+    choppingBlock: {
+      player: choppingBlock.player,
+      statline: `${choppingBlock.player.pts.toFixed(1)} PTS • ${(choppingBlock.ts * 100).toFixed(0)} TS% • ${choppingBlock.player.plus_minus.toFixed(1)} +/-`,
+      detail: `${choppingBlock.player.name.split(' ')[0]} still has rotation value and enough offensive profile to interest other teams, but weaker efficiency, defense, or win-impact signals make them more movable than the core.`,
+    },
+  }
 }

@@ -124,7 +124,7 @@ export interface SeasonData {
   playoffs: SeasonBlock
 }
 
-export interface FeverData {
+export interface WnbaDashboardData {
   team: {
     id: number
     name: string

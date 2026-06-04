@@ -17,7 +17,7 @@ from typing import Any
 
 from sklearn.ensemble import RandomForestClassifier
 
-DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "fever_data.json"
+DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "wnba_data.json"
 OUTPUT_FILE = Path(__file__).parent.parent / "src" / "data" / "team_predictions.json"
 
 

@@ -291,7 +291,7 @@ def main():
             print(f"\n  ERROR fetching {season}: {e}")
             all_data["seasons"][season] = None
 
-    output_file = OUTPUT_DIR / "fever_data.json"
+    output_file = OUTPUT_DIR / "wnba_data.json"
     with open(output_file, "w") as f:
         json.dump(all_data, f, indent=2)
 

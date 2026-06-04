@@ -24,7 +24,7 @@ from nba_api.stats.endpoints import (
     shotchartdetail,
 )
 
-DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "fever_data.json"
+DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "wnba_data.json"
 WNBA_LEAGUE_ID = "10"
 CURRENT_SEASON = "2026"
 PYTHON = sys.executable

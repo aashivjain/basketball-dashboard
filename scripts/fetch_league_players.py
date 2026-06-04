@@ -1,5 +1,5 @@
 """
-Add league-wide player stats to existing fever_data.json.
+Add league-wide player stats to existing wnba_data.json.
 This allows comparing Fever players against anyone in the WNBA.
 """
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from nba_api.stats.endpoints import leaguedashplayerstats
 
-DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "fever_data.json"
+DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "wnba_data.json"
 WNBA_LEAGUE_ID = "10"
 SEASONS = ["2024", "2025", "2026"]
 
