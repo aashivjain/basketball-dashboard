@@ -32,3 +32,5 @@ venv
 
 # Data (re-fetch via scripts)
 src/data/fever_data.json
+src/data/wnba_data.json
+src/data/team_predictions.json
