@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Shot } from '../types'
 
 interface Props {
@@ -68,6 +68,21 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const [selectedZone, setSelectedZone] = useState<string | null>(null)
   const [hoveredShot, setHoveredShot] = useState<{ shot: Shot; x: number; y: number } | null>(null)
 
+  const orderedDates = useMemo(() => {
+    return Array.from(new Set(
+      [...shots]
+        .sort((a, b) => Date.parse(a.game_date) - Date.parse(b.game_date))
+        .map(shot => shot.game_date)
+    ))
+  }, [shots])
+  const [rangeStart, setRangeStart] = useState(0)
+  const [rangeEnd, setRangeEnd] = useState(Math.max(0, orderedDates.length - 1))
+
+  useEffect(() => {
+    setRangeStart(0)
+    setRangeEnd(Math.max(0, orderedDates.length - 1))
+  }, [orderedDates.length])
+
   if (shots.length === 0) {
     return (
       <div className="rounded-2xl p-8 text-center" style={{ background: '#f5f0e8', border: '1px solid #e8dcc8' }}>
@@ -76,13 +91,21 @@ export default function ShotChart({ shots, teamColor }: Props) {
     )
   }
 
-  const made = shots.filter(s => s.made)
-  const missed = shots.filter(s => !s.made)
-  const fgPct = shots.length > 0 ? ((made.length / shots.length) * 100).toFixed(1) : '0'
+  const safeStart = Math.min(rangeStart, rangeEnd)
+  const safeEnd = Math.max(rangeStart, rangeEnd)
+  const startDate = orderedDates[safeStart] ?? null
+  const endDate = orderedDates[safeEnd] ?? null
+  const filteredShots = startDate && endDate
+    ? shots.filter(shot => shot.game_date >= startDate && shot.game_date <= endDate)
+    : shots
+
+  const made = filteredShots.filter(s => s.made)
+  const missed = filteredShots.filter(s => !s.made)
+  const fgPct = filteredShots.length > 0 ? ((made.length / filteredShots.length) * 100).toFixed(1) : '0'
 
   // Compute zone stats
   const zoneStats = ZONE_DEFS.map(z => {
-    const zoneShots = shots.filter(z.test)
+    const zoneShots = filteredShots.filter(z.test)
     const zoneMade = zoneShots.filter(s => s.made)
     return {
       name: z.name,
@@ -103,8 +126,8 @@ export default function ShotChart({ shots, teamColor }: Props) {
 
   // Filter shots for selected zone in dots mode
   const displayShots = selectedZone
-    ? shots.filter(s => ZONE_DEFS.find(z => z.name === selectedZone)?.test(s))
-    : shots
+    ? filteredShots.filter(s => ZONE_DEFS.find(z => z.name === selectedZone)?.test(s))
+    : filteredShots
 
   const displayMade = displayShots.filter(s => s.made)
   const displayMissed = displayShots.filter(s => !s.made)
@@ -129,6 +152,80 @@ export default function ShotChart({ shots, teamColor }: Props) {
           <span className="text-xs text-slate-400">{fgPct}% FG</span>
         </div>
       </div>
+
+      {orderedDates.length > 1 && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Date Range</div>
+              <div className="mt-1 text-[12px] text-slate-500">
+                {formatRangeLabel(startDate, endDate)}
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              {filteredShots.length} shots shown
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="relative px-1">
+              <div className="absolute left-1 right-1 top-[13px] h-[3px] rounded-full bg-slate-200" />
+              <div
+                className="absolute top-[13px] h-[3px] rounded-full"
+                style={{
+                  left: `calc(${getSliderPct(safeStart, orderedDates.length)}% + 4px)`,
+                  right: `calc(${100 - getSliderPct(safeEnd, orderedDates.length)}% + 4px)`,
+                  background: teamColor.primary,
+                }}
+              />
+
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0, orderedDates.length - 1)}
+                value={safeStart}
+                onChange={event => setRangeStart(Number(event.target.value))}
+                className="timeline-thumb relative z-10 w-full appearance-none bg-transparent"
+                style={{ accentColor: teamColor.primary }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0, orderedDates.length - 1)}
+                value={safeEnd}
+                onChange={event => setRangeEnd(Number(event.target.value))}
+                className="timeline-thumb relative z-20 -mt-6 w-full appearance-none bg-transparent"
+                style={{ accentColor: teamColor.primary }}
+              />
+            </div>
+
+            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+              <span>{formatShortDate(orderedDates[0] ?? null)}</span>
+              <span>{formatShortDate(orderedDates[orderedDates.length - 1] ?? null)}</span>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {buildPresets(orderedDates.length).map(preset => (
+              <button
+                key={preset.label}
+                onClick={() => {
+                  setRangeStart(preset.start)
+                  setRangeEnd(preset.end)
+                }}
+                className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
+                style={{
+                  borderColor: safeStart === preset.start && safeEnd === preset.end ? teamColor.primary : '#e2e8f0',
+                  background: safeStart === preset.start && safeEnd === preset.end ? `${teamColor.primary}14` : '#fff',
+                  color: safeStart === preset.start && safeEnd === preset.end ? teamColor.primary : '#64748b',
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       {mode === 'dots' ? (
@@ -411,4 +508,50 @@ export default function ShotChart({ shots, teamColor }: Props) {
       </div>
     </div>
   )
+}
+
+function formatShortDate(value: string | null) {
+  if (!value) return 'N/A'
+  const parsed = parseShotDate(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function formatRangeLabel(start: string | null, end: string | null) {
+  if (!start || !end) return 'Full season'
+  const startParsed = parseShotDate(start)
+  const endParsed = parseShotDate(end)
+  if (Number.isNaN(startParsed.getTime()) || Number.isNaN(endParsed.getTime())) {
+    return `${start} to ${end}`
+  }
+
+  const sameYear = startParsed.getFullYear() === endParsed.getFullYear()
+  const startLabel = startParsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
+  const endLabel = endParsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${startLabel} to ${endLabel}`
+}
+
+function parseShotDate(value: string) {
+  if (/^\d{8}$/.test(value)) {
+    const year = Number(value.slice(0, 4))
+    const month = Number(value.slice(4, 6)) - 1
+    const day = Number(value.slice(6, 8))
+    return new Date(year, month, day)
+  }
+
+  return new Date(value)
+}
+
+function getSliderPct(index: number, total: number) {
+  if (total <= 1) return 0
+  return (index / (total - 1)) * 100
+}
+
+function buildPresets(total: number) {
+  if (total <= 1) return []
+  return [
+    { label: 'Last 5', start: Math.max(0, total - 5), end: total - 1 },
+    { label: 'Last 10', start: Math.max(0, total - 10), end: total - 1 },
+    { label: 'Full season', start: 0, end: total - 1 },
+  ]
 }
