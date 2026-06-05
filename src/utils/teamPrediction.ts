@@ -99,6 +99,9 @@ function aggregateTeamGames(team: string, block: SeasonBlock) {
   for (const playerId of teamPlayerIds) {
     const logs = block.game_logs[playerId] ?? []
     for (const game of logs) {
+      if (!game.matchup.startsWith(`${team} `)) {
+        continue
+      }
       const key = `${game.game_date}|${game.matchup}`
       if (!grouped.has(key)) {
         grouped.set(key, {

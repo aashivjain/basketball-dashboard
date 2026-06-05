@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { SeasonBlock, TeamPredictionsData } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import { buildTeamProfiles, predictMatchup } from '../utils/teamPrediction'
@@ -14,6 +14,9 @@ export default function NextGamePrediction({ block }: Props) {
   const teamProfiles = useMemo(() => (block ? buildTeamProfiles(block) : []), [block])
   const [selectedTeam, setSelectedTeam] = useState(teamProfiles[0]?.team ?? 'IND')
   const [venue, setVenue] = useState<'home' | 'away'>('home')
+  const [showRosterSummary, setShowRosterSummary] = useState(false)
+  const [showLineupLab, setShowLineupLab] = useState(false)
+  const [showMatchups, setShowMatchups] = useState(false)
 
   useEffect(() => {
     if (!teamProfiles.find(team => team.team === selectedTeam)) {
@@ -74,17 +77,17 @@ export default function NextGamePrediction({ block }: Props) {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">Team Predictions</p>
-          <h2 className="text-2xl text-slate-900 mt-1">Matchup board</h2>
+          <h2 className="text-[28px] text-slate-900 mt-1">Team dashboard</h2>
           <p className="text-sm text-slate-500 mt-2 max-w-3xl">
-            One column, each opponent once, with both models shown side by side.
+            Pick a team, then open the sections you want to inspect.
           </p>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <select
             value={selectedTeam}
             onChange={event => setSelectedTeam(event.target.value)}
-            className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 focus:outline-none"
+            className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-slate-700 focus:outline-none"
           >
             {teamProfiles.map(team => (
               <option key={team.team} value={team.team}>
@@ -92,106 +95,165 @@ export default function NextGamePrediction({ block }: Props) {
               </option>
             ))}
           </select>
-
-          <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
-            {(['home', 'away'] as const).map(option => (
-              <button
-                key={option}
-                onClick={() => setVenue(option)}
-                className="rounded-full px-4 py-1.5 text-sm font-medium"
-                style={{
-                  background: venue === option ? focusColors.primary : 'transparent',
-                  color: venue === option ? '#fff' : '#475569',
-                }}
-              >
-                {option === 'home' ? 'At home' : 'On road'}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
       <div className="mt-5 rounded-[22px] border border-slate-200 overflow-hidden">
         {rosterSignals && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-b border-slate-200 bg-slate-50/70">
-            <RosterCard
-              title="Most Valuable"
-              subtitle="Biggest win driver"
-              player={rosterSignals.mostValuable.player.name}
-              detail={rosterSignals.mostValuable.detail}
-              accent={focusColors.primary}
-              statline={rosterSignals.mostValuable.statline}
-            />
-            <RosterCard
-              title="Chopping Block"
-              subtitle="Tradeable rotation piece"
-              player={rosterSignals.choppingBlock.player.name}
-              detail={rosterSignals.choppingBlock.detail}
-              accent={focusColors.secondary}
-              statline={rosterSignals.choppingBlock.statline}
-            />
-          </div>
+          <CollapsibleSection
+            title="Roster Summary"
+            subtitle="Most valuable player and likely tradeable piece"
+            isOpen={showRosterSummary}
+            onToggle={() => setShowRosterSummary(open => !open)}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0 bg-slate-50/70">
+              <RosterCard
+                title="Most Valuable"
+                subtitle="Biggest win driver"
+                player={rosterSignals.mostValuable.player.name}
+                detail={rosterSignals.mostValuable.detail}
+                accent={focusColors.primary}
+                statline={rosterSignals.mostValuable.statline}
+              />
+              <RosterCard
+                title="Chopping Block"
+                subtitle="Tradeable rotation piece"
+                player={rosterSignals.choppingBlock.player.name}
+                detail={rosterSignals.choppingBlock.detail}
+                accent={focusColors.secondary}
+                statline={rosterSignals.choppingBlock.statline}
+              />
+            </div>
+          </CollapsibleSection>
         )}
 
         {focusTeam && lineupLab && (
-          <LineupImpactLab
-            team={focusTeam}
-            accent={focusColors.primary}
-            lineupIds={lineupIds}
-            onTogglePlayer={playerId => {
-              setLineupIds(current => {
-                if (current.includes(playerId)) {
-                  if (current.length <= 3) return current
-                  return current.filter(id => id !== playerId)
-                }
-                if (current.length >= 5) {
-                  return [...current.slice(1), playerId]
-                }
-                return [...current, playerId]
-              })
-            }}
-            lab={lineupLab}
-          />
+          <CollapsibleSection
+            title="Lineup Impact Lab"
+            subtitle="Test 3-5 player combinations against the team baseline"
+            isOpen={showLineupLab}
+            onToggle={() => setShowLineupLab(open => !open)}
+          >
+            <LineupImpactLab
+              team={focusTeam}
+              accent={focusColors.primary}
+              lineupIds={lineupIds}
+              onTogglePlayer={playerId => {
+                setLineupIds(current => {
+                  if (current.includes(playerId)) {
+                    if (current.length <= 3) return current
+                    return current.filter(id => id !== playerId)
+                  }
+                  if (current.length >= 5) {
+                    return [...current.slice(1), playerId]
+                  }
+                  return [...current, playerId]
+                })
+              }}
+              lab={lineupLab}
+            />
+          </CollapsibleSection>
         )}
 
-        <div className="grid grid-cols-[90px_1fr_1fr] gap-4 bg-slate-50 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
-          <div>Opponent</div>
-          <div>Weighted</div>
-          <div>Random Forest</div>
-        </div>
-
-        <div className="divide-y divide-slate-200">
-          {matchupRows.map(row => (
-            <div key={row.opponent.team} className="grid grid-cols-[90px_1fr_1fr] gap-4 px-4 py-4 items-center">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: row.opponentColors.primary }} />
-                  <div className="text-sm font-semibold text-slate-900 truncate">{row.opponent.team}</div>
-                </div>
-              </div>
-
-              <GaugeColumn
-                label={row.weightedPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
-                pct={row.weightedPct}
-                leftTeam={selectedTeam}
-                rightTeam={row.opponent.team}
-                color={focusColors.primary}
-                note={compactReason(row.weightedReason)}
-              />
-
-              <GaugeColumn
-                label={row.rfPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
-                pct={row.rfPct}
-                leftTeam={selectedTeam}
-                rightTeam={row.opponent.team}
-                color={focusColors.secondary}
-                note={compactReason(row.rfReason)}
-              />
+        <CollapsibleSection
+          title="Matchup Board"
+          subtitle="Weighted and random forest team outlooks"
+          isOpen={showMatchups}
+          onToggle={() => setShowMatchups(open => !open)}
+        >
+          <div className="flex items-center justify-between gap-4 flex-wrap border-b border-slate-200 bg-slate-50 px-4 py-4 md:px-5">
+            <div>
+              <div className="text-lg font-semibold text-slate-900">Matchup board</div>
+              <div className="mt-1 text-[12px] text-slate-500">One row per opponent, with both models shown side by side.</div>
             </div>
-          ))}
-        </div>
+            <div className="flex rounded-full border border-slate-200 bg-white p-1">
+              {(['home', 'away'] as const).map(option => (
+                <button
+                  key={option}
+                  onClick={() => setVenue(option)}
+                  className="rounded-full px-4 py-2 text-sm font-semibold"
+                  style={{
+                    background: venue === option ? focusColors.primary : 'transparent',
+                    color: venue === option ? '#fff' : '#475569',
+                  }}
+                >
+                  {option === 'home' ? 'At home' : 'On road'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[100px_1fr_1fr] gap-4 bg-slate-50 px-4 py-3 text-[12px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
+            <div>Opponent</div>
+            <div>Weighted</div>
+            <div>Random Forest</div>
+          </div>
+
+          <div className="divide-y divide-slate-200">
+            {matchupRows.map(row => (
+              <div key={row.opponent.team} className="grid grid-cols-[100px_1fr_1fr] gap-4 px-4 py-4 items-center">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: row.opponentColors.primary }} />
+                    <div className="text-base font-semibold text-slate-900 truncate">{row.opponent.team}</div>
+                  </div>
+                </div>
+
+                <GaugeColumn
+                  label={row.weightedPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
+                  pct={row.weightedPct}
+                  leftTeam={selectedTeam}
+                  rightTeam={row.opponent.team}
+                  color={focusColors.primary}
+                  note={compactReason(row.weightedReason)}
+                />
+
+                <GaugeColumn
+                  label={row.rfPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
+                  pct={row.rfPct}
+                  leftTeam={selectedTeam}
+                  rightTeam={row.opponent.team}
+                  color={focusColors.secondary}
+                  note={compactReason(row.rfReason)}
+                />
+              </div>
+            ))}
+          </div>
+        </CollapsibleSection>
       </div>
     </section>
+  )
+}
+
+function CollapsibleSection({
+  title,
+  subtitle,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  isOpen: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="border-b border-slate-200 last:border-b-0">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-4 bg-white px-4 py-3 text-left md:px-5"
+      >
+        <div>
+          <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-slate-700">{title}</div>
+          <div className="mt-1 text-[12px] text-slate-500">{subtitle}</div>
+        </div>
+        <div className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-600">
+          {isOpen ? 'Hide' : 'Open'}
+        </div>
+      </button>
+      {isOpen && children}
+    </div>
   )
 }
 
@@ -209,7 +271,7 @@ function LineupImpactLab({
   lab: ReturnType<typeof analyzeLineupImpact>
 }) {
   return (
-    <div className="border-b border-slate-200 bg-white px-4 py-4 md:px-5">
+    <div className="bg-white px-4 py-4 md:px-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>Lineup Impact Lab</div>
@@ -555,14 +617,28 @@ function analyzeLineupImpact(
     Math.abs(selectedGuards - guardTarget) * 5 +
     Math.abs(selectedBigs - bigTarget) * 7 +
     Math.abs(selectedWings - wingTarget) * 3
+
+  const smoothContribution = (delta: number, scale: number, weight: number, deadZone = 0) => {
+    const adjusted = Math.abs(delta) <= deadZone ? 0 : delta - Math.sign(delta) * deadZone
+    return (adjusted / (Math.abs(adjusted) + scale)) * weight
+  }
+
+  const scoreContributions = {
+    shootingGravity: smoothContribution(deltas.shootingGravity, 0.14, 11, 0.01),
+    creation: smoothContribution(deltas.creation, 0.4, 8, 0.03),
+    defense: smoothContribution(deltas.defense, 0.38, 8, 0.03),
+    rebounding: smoothContribution(deltas.rebounding, 0.45, 7, 0.04),
+    ballSecurity: smoothContribution(deltas.ballSecurity, 0.3, 4.5, 0.06),
+    ts: smoothContribution(deltas.ts, 2.8, 9, 0.2),
+  }
   const blendedScore =
     50 +
-    deltas.shootingGravity * 38 +
-    deltas.creation * 7 +
-    deltas.defense * 9 +
-    deltas.rebounding * 8 +
-    deltas.ballSecurity * 10 +
-    deltas.ts * 2.6 -
+    scoreContributions.shootingGravity +
+    scoreContributions.creation +
+    scoreContributions.defense +
+    scoreContributions.rebounding +
+    scoreContributions.ballSecurity +
+    scoreContributions.ts -
     balancePenalty
   const averageLineupScore = 50
   const totalScore = Math.max(1, Math.min(99, blendedScore))
@@ -589,7 +665,7 @@ function analyzeLineupImpact(
       baseline: averageLineupScore,
       delta: totalDelta,
       fill: Math.max(8, Math.min(100, totalScore)),
-      detail: `This score blends shooting, creation, defense, rebounding, ball security, efficiency, and an implicit lineup-balance check for guards, wings, and bigs. Current mix: ${selectedGuards} guard${selectedGuards === 1 ? '' : 's'}, ${selectedWings} wing${selectedWings === 1 ? '' : 's'}, ${selectedBigs} big${selectedBigs === 1 ? '' : 's'}.`,
+      detail: `This score blends shooting, creation, defense, rebounding, ball security, efficiency, and an implicit lineup-balance check for guards, wings, and bigs. Small stat changes are intentionally damped so one tiny swing does not overreact. Current mix: ${selectedGuards} guard${selectedGuards === 1 ? '' : 's'}, ${selectedWings} wing${selectedWings === 1 ? '' : 's'}, ${selectedBigs} big${selectedBigs === 1 ? '' : 's'}.`,
     },
   }
 }

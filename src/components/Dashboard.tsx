@@ -29,6 +29,10 @@ export default function Dashboard() {
   const seasonData = data.seasons[season] as SeasonData | null
   const block = seasonData ? seasonData[seasonType] : null
   const allPlayers: LeaguePlayer[] = useMemo(() => block?.all_players ?? [], [block])
+  const rosterById = useMemo(() => {
+    const entries = seasonData?.roster ?? []
+    return new Map(entries.map(player => [player.player_id, player]))
+  }, [seasonData])
 
   const playersByTeam = useMemo(() => {
     const map: Record<string, LeaguePlayer[]> = {}
@@ -67,7 +71,16 @@ export default function Dashboard() {
   // Compute position averages by classifying players into Guard/Wing/Big
   const positionAvg = useMemo(() => {
     if (!player || allPlayers.length === 0) return null
+    const normalizePosition = (position: string | undefined) => {
+      if (!position) return null
+      if (position.includes('G')) return 'Guard'
+      if (position.includes('F')) return 'Wing'
+      if (position.includes('C')) return 'Big'
+      return null
+    }
     const classify = (p: LeaguePlayer) => {
+      const listed = normalizePosition(rosterById.get(p.player_id)?.position)
+      if (listed) return listed
       if (p.ast >= p.reb * 0.7 && p.reb < 6) return 'Guard'
       if (p.reb >= p.ast * 2.5 || p.reb >= 7) return 'Big'
       return 'Wing'
@@ -78,7 +91,7 @@ export default function Dashboard() {
     const avg = (key: 'pts' | 'reb' | 'ast' | 'stl' | 'blk') =>
       group.reduce((s, p) => s + p[key], 0) / group.length
     return { pts: avg('pts'), reb: avg('reb'), ast: avg('ast'), stl: avg('stl'), blk: avg('blk'), label: pos }
-  }, [player, allPlayers])
+  }, [player, allPlayers, rosterById])
 
   return (
     <div className="min-h-screen transition-colors duration-500" style={{ background: section === 'players' && teamColor ? teamColor.bg : '#fafafa' }}>

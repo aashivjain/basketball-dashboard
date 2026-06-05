@@ -71,7 +71,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const orderedDates = useMemo(() => {
     return Array.from(new Set(
       [...shots]
-        .sort((a, b) => Date.parse(a.game_date) - Date.parse(b.game_date))
+        .sort((a, b) => parseShotDate(a.game_date).getTime() - parseShotDate(b.game_date).getTime())
         .map(shot => shot.game_date)
     ))
   }, [shots])
@@ -96,7 +96,12 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const startDate = orderedDates[safeStart] ?? null
   const endDate = orderedDates[safeEnd] ?? null
   const filteredShots = startDate && endDate
-    ? shots.filter(shot => shot.game_date >= startDate && shot.game_date <= endDate)
+    ? shots.filter(shot => {
+        const shotTime = parseShotDate(shot.game_date).getTime()
+        const startTime = parseShotDate(startDate).getTime()
+        const endTime = parseShotDate(endDate).getTime()
+        return shotTime >= startTime && shotTime <= endTime
+      })
     : shots
 
   const made = filteredShots.filter(s => s.made)
