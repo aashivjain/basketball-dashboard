@@ -23,10 +23,24 @@ export default function NextGamePrediction({ block }: Props) {
 
   const focusTeam = teamProfiles.find(team => team.team === selectedTeam) ?? null
   const focusColors = getTeamColors(selectedTeam)
+  const [lineupIds, setLineupIds] = useState<number[]>([])
+
+  useEffect(() => {
+    if (!focusTeam) {
+      setLineupIds([])
+      return
+    }
+    setLineupIds(focusTeam.players.slice(0, 5).map(player => player.player_id))
+  }, [focusTeam])
+
   const rosterSignals = useMemo(() => {
     if (!focusTeam || !block) return null
     return analyzeTeamRoster(focusTeam, block)
   }, [block, focusTeam])
+  const lineupLab = useMemo(() => {
+    if (!focusTeam) return null
+    return analyzeLineupImpact(focusTeam, lineupIds)
+  }, [focusTeam, lineupIds])
 
   const matchupRows = useMemo(() => {
     if (!focusTeam) return []
@@ -119,6 +133,27 @@ export default function NextGamePrediction({ block }: Props) {
           </div>
         )}
 
+        {focusTeam && lineupLab && (
+          <LineupImpactLab
+            team={focusTeam}
+            accent={focusColors.primary}
+            lineupIds={lineupIds}
+            onTogglePlayer={playerId => {
+              setLineupIds(current => {
+                if (current.includes(playerId)) {
+                  if (current.length <= 3) return current
+                  return current.filter(id => id !== playerId)
+                }
+                if (current.length >= 5) {
+                  return [...current.slice(1), playerId]
+                }
+                return [...current, playerId]
+              })
+            }}
+            lab={lineupLab}
+          />
+        )}
+
         <div className="grid grid-cols-[90px_1fr_1fr] gap-4 bg-slate-50 px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">
           <div>Opponent</div>
           <div>Weighted</div>
@@ -157,6 +192,120 @@ export default function NextGamePrediction({ block }: Props) {
         </div>
       </div>
     </section>
+  )
+}
+
+function LineupImpactLab({
+  team,
+  accent,
+  lineupIds,
+  onTogglePlayer,
+  lab,
+}: {
+  team: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>
+  accent: string
+  lineupIds: number[]
+  onTogglePlayer: (playerId: number) => void
+  lab: ReturnType<typeof analyzeLineupImpact>
+}) {
+  return (
+    <div className="border-b border-slate-200 bg-white px-4 py-4 md:px-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>Lineup Impact Lab</div>
+          <div className="mt-1 text-[11px] text-slate-500">Pick 3-5 players and see how that group shifts the team profile.</div>
+        </div>
+        <div className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
+          {lineupIds.length} players selected
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {team.players.slice(0, 10).map(player => {
+          const active = lineupIds.includes(player.player_id)
+          return (
+            <button
+              key={player.player_id}
+              onClick={() => onTogglePlayer(player.player_id)}
+              className="rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all"
+              style={{
+                borderColor: active ? accent : '#e2e8f0',
+                background: active ? `${accent}14` : '#fff',
+                color: active ? accent : '#64748b',
+              }}
+            >
+              {player.name.split(' ').slice(-1)[0]}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {lab.metrics.map(metric => (
+            <div key={metric.label} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3">
+              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{metric.label}</div>
+              <div className="mt-2 text-lg font-semibold text-slate-900">{metric.value}</div>
+              <div className="mt-1 text-[11px] text-slate-500">
+                Team baseline: <span className="font-semibold text-slate-700">{metric.baseline}</span>
+              </div>
+              <div className="mt-1 text-[11px] font-semibold" style={{ color: metric.delta >= 0 ? '#15803d' : '#dc2626' }}>
+                {metric.comparison}
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${metric.fill}%`,
+                    background: metric.delta >= 0 ? '#22c55e' : '#f97316',
+                    opacity: 0.8,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Lineup Read</div>
+          <div className="mt-2 text-sm font-semibold text-slate-900">{lab.headline}</div>
+          <div className="mt-2 text-[12px] leading-5 text-slate-600">{lab.summary}</div>
+          <div className="mt-2 text-[11px] text-slate-500">
+            All lineup numbers are per-player blends, then compared against the team’s normal top-5 baseline.
+          </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-3">
+            <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Total Lineup Score</div>
+            <div className="mt-2 flex items-end justify-between gap-3">
+              <div className="text-2xl font-semibold text-slate-900">{lab.totalScore.score.toFixed(0)}</div>
+              <div className="text-right">
+                <div className="text-[11px] text-slate-500">Average lineup: <span className="font-semibold text-slate-700">{lab.totalScore.baseline.toFixed(0)}</span></div>
+                <div className="mt-1 text-[11px] font-semibold" style={{ color: lab.totalScore.delta >= 0 ? '#15803d' : '#dc2626' }}>
+                  {lab.totalScore.delta >= 0 ? '+' : ''}{lab.totalScore.delta.toFixed(0)} vs average lineup
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${lab.totalScore.fill}%`,
+                  background: lab.totalScore.delta >= 0 ? '#22c55e' : '#f97316',
+                  opacity: 0.85,
+                }}
+              />
+            </div>
+            <div className="mt-2 text-[11px] leading-5 text-slate-500">{lab.totalScore.detail}</div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {lab.tags.map(tag => (
+              <span key={tag} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -322,5 +471,148 @@ function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles
       statline: `${choppingBlock.player.pts.toFixed(1)} PTS • ${(choppingBlock.ts * 100).toFixed(0)} TS% • ${choppingBlock.player.plus_minus.toFixed(1)} +/-`,
       detail: `${choppingBlock.player.name.split(' ')[0]} still has rotation value and enough offensive profile to interest other teams, but weaker efficiency, defense, or win-impact signals make them more movable than the core.`,
     },
+  }
+}
+
+function analyzeLineupImpact(
+  team: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>,
+  lineupIds: number[]
+) {
+  const lineupPlayers = team.players.filter(player => lineupIds.includes(player.player_id))
+  const selected = lineupPlayers.length ? lineupPlayers : team.players.slice(0, 5)
+
+  const weightedAverage = (players: typeof selected, getter: (player: typeof selected[number]) => number) => {
+    const totalMinutes = players.reduce((sum, player) => sum + Math.max(player.min, 0), 0)
+    if (totalMinutes <= 0) {
+      return players.length ? players.reduce((sum, player) => sum + getter(player), 0) / players.length : 0
+    }
+    return players.reduce((sum, player) => sum + getter(player) * Math.max(player.min, 0), 0) / totalMinutes
+  }
+
+  const teamPool = team.players.filter(player => player.gp >= 3 && player.min >= 6)
+  const baselinePool = teamPool.length ? teamPool : team.players
+  const trueShooting = (player: typeof selected[number]) =>
+    player.fga + 0.44 * player.fta > 0 ? player.pts / (2 * (player.fga + 0.44 * player.fta)) : 0
+  const gravityScore = (player: typeof selected[number]) => player.fg3a * player.fg3_pct
+  const creationLoad = (player: typeof selected[number]) => player.ast
+  const defenseActivity = (player: typeof selected[number]) => player.stl * 1.7 + player.blk * 1.5 + player.dreb * 0.28 + player.oreb * 0.18
+  const reboundRate = (player: typeof selected[number]) => player.reb
+  const ballSecurityValue = (player: typeof selected[number]) => player.tov > 0 ? player.ast / player.tov : player.ast
+  const classifyRole = (player: typeof selected[number]) => {
+    if (player.ast >= player.reb * 0.8 && player.reb < 6.5) return 'guard'
+    if (player.reb >= 6.8 || player.blk >= 0.8 || player.oreb >= 1.4) return 'big'
+    return 'wing'
+  }
+
+  const ts = weightedAverage(selected, trueShooting)
+  const shootingGravity = weightedAverage(selected, gravityScore)
+  const creation = weightedAverage(selected, creationLoad)
+  const defense = weightedAverage(selected, defenseActivity)
+  const rebounding = weightedAverage(selected, reboundRate)
+  const ballSecurity = weightedAverage(selected, ballSecurityValue)
+  const selectedGuards = selected.filter(player => classifyRole(player) === 'guard').length
+  const selectedBigs = selected.filter(player => classifyRole(player) === 'big').length
+  const selectedWings = selected.filter(player => classifyRole(player) === 'wing').length
+
+  const baseline = {
+    shootingGravity: weightedAverage(baselinePool, gravityScore),
+    creation: weightedAverage(baselinePool, creationLoad),
+    defense: weightedAverage(baselinePool, defenseActivity),
+    rebounding: weightedAverage(baselinePool, reboundRate),
+    ballSecurity: weightedAverage(baselinePool, ballSecurityValue),
+    ts: weightedAverage(baselinePool, trueShooting),
+  }
+
+  const deltas = {
+    shootingGravity: shootingGravity - baseline.shootingGravity,
+    creation: creation - baseline.creation,
+    defense: defense - baseline.defense,
+    rebounding: rebounding - baseline.rebounding,
+    ballSecurity: ballSecurity - baseline.ballSecurity,
+    ts: (ts - baseline.ts) * 100,
+  }
+
+  const rankedEdges = [
+    { key: 'shootingGravity', label: '3-point shooting', delta: deltas.shootingGravity },
+    { key: 'creation', label: 'Creation', delta: deltas.creation },
+    { key: 'defense', label: 'Stocks + boards', delta: deltas.defense },
+    { key: 'rebounding', label: 'Rebounding', delta: deltas.rebounding },
+    { key: 'ballSecurity', label: 'Ball security', delta: deltas.ballSecurity },
+  ].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+
+  const positives = rankedEdges.filter(edge => edge.delta > 0).slice(0, 2).map(edge => edge.label)
+  const negatives = rankedEdges.filter(edge => edge.delta < 0).slice(0, 2).map(edge => edge.label)
+
+  const headline = positives.length
+    ? `This lineup leans into ${positives.join(' and ').toLowerCase()}.`
+    : 'This lineup looks balanced but not clearly additive.'
+  const summary = `${selected.map(player => player.name.split(' ').slice(-1)[0]).join(', ')} are minute-weighted together, then compared with the broader team rotation baseline${positives.length ? ` to show stronger ${positives.join(' and ').toLowerCase()}` : ''}${negatives.length ? `, but a dip in ${negatives.join(' and ').toLowerCase()}` : ''}.`
+
+  const guardTarget = selected.length >= 5 ? 2 : Math.max(1, Math.round(selected.length * 0.4))
+  const bigTarget = selected.length >= 5 ? 1 : Math.max(1, Math.round(selected.length * 0.2))
+  const wingTarget = Math.max(1, selected.length - guardTarget - bigTarget)
+  const balancePenalty =
+    Math.abs(selectedGuards - guardTarget) * 5 +
+    Math.abs(selectedBigs - bigTarget) * 7 +
+    Math.abs(selectedWings - wingTarget) * 3
+  const blendedScore =
+    50 +
+    deltas.shootingGravity * 38 +
+    deltas.creation * 7 +
+    deltas.defense * 9 +
+    deltas.rebounding * 8 +
+    deltas.ballSecurity * 10 +
+    deltas.ts * 2.6 -
+    balancePenalty
+  const averageLineupScore = 50
+  const totalScore = Math.max(1, Math.min(99, blendedScore))
+  const totalDelta = totalScore - averageLineupScore
+
+  return {
+    metrics: [
+      buildMetricCard('3PT Percentage', `${(weightedAverage(selected, player => player.fg3_pct) * 100).toFixed(1)}%`, `${(weightedAverage(baselinePool, player => player.fg3_pct) * 100).toFixed(1)}%`, deltas.shootingGravity, 0.18, 35, 'better 3-point shooting', 'worse 3-point shooting', ''),
+      buildMetricCard('Creation', `${creation.toFixed(1)} AST`, `${baseline.creation.toFixed(1)} AST`, deltas.creation, 0.5, 5, 'more creation', 'less creation', ''),
+      buildMetricCard('Def Contribution', `${defense.toFixed(1)} score`, `${baseline.defense.toFixed(1)} score`, deltas.defense, 0.45, 8, 'more defensive contribution', 'less defensive contribution', ''),
+      buildMetricCard('Rebounding', `${rebounding.toFixed(1)} REB`, `${baseline.rebounding.toFixed(1)} REB`, deltas.rebounding, 0.5, 8, 'better on the glass', 'weaker on the glass', ''),
+      buildMetricCard('Ball Security', `${ballSecurity.toFixed(1)} AST/TO`, `${baseline.ballSecurity.toFixed(1)} AST/TO`, deltas.ballSecurity, 0.25, 4, 'cleaner with the ball', 'looser with the ball', ''),
+      buildMetricCard('Efficiency', `${(ts * 100).toFixed(0)} TS%`, `${(baseline.ts * 100).toFixed(0)} TS%`, deltas.ts, 3, 18, 'more efficient', 'less efficient', ' pts'),
+    ],
+    headline,
+    summary,
+    tags: [
+      positives[0] ? `+ ${positives[0]}` : 'Stable profile',
+      positives[1] ? `+ ${positives[1]}` : `${selected.length}-player group`,
+      negatives[0] ? `- ${negatives[0]}` : 'No major weakness',
+    ],
+    totalScore: {
+      score: totalScore,
+      baseline: averageLineupScore,
+      delta: totalDelta,
+      fill: Math.max(8, Math.min(100, totalScore)),
+      detail: `This score blends shooting, creation, defense, rebounding, ball security, efficiency, and an implicit lineup-balance check for guards, wings, and bigs. Current mix: ${selectedGuards} guard${selectedGuards === 1 ? '' : 's'}, ${selectedWings} wing${selectedWings === 1 ? '' : 's'}, ${selectedBigs} big${selectedBigs === 1 ? '' : 's'}.`,
+    },
+  }
+}
+
+function buildMetricCard(
+  label: string,
+  value: string,
+  baseline: string,
+  delta: number,
+  scale: number,
+  maxFill: number,
+  positiveLabel: string,
+  negativeLabel: string,
+  unitSuffix: string
+) {
+  const normalized = Math.max(8, Math.min(100, 50 + (delta / scale) * maxFill))
+  const amount = Math.abs(delta).toFixed(1)
+  return {
+    label,
+    value,
+    baseline,
+    delta,
+    comparison: `${delta >= 0 ? '+' : '-'}${amount}${unitSuffix} vs baseline • ${delta >= 0 ? positiveLabel : negativeLabel}`,
+    fill: normalized,
   }
 }
