@@ -16,6 +16,7 @@ export default function NextGamePrediction({ block }: Props) {
   const [venue, setVenue] = useState<'home' | 'away'>('home')
   const [showRosterSummary, setShowRosterSummary] = useState(false)
   const [showLineupLab, setShowLineupLab] = useState(false)
+  const [showSynergyBoard, setShowSynergyBoard] = useState(false)
   const [showMatchups, setShowMatchups] = useState(false)
 
   useEffect(() => {
@@ -44,6 +45,10 @@ export default function NextGamePrediction({ block }: Props) {
     if (!focusTeam) return null
     return analyzeLineupImpact(focusTeam, lineupIds)
   }, [focusTeam, lineupIds])
+  const synergyBoard = useMemo(() => {
+    if (!focusTeam) return []
+    return analyzeLineupSynergy(focusTeam)
+  }, [focusTeam])
 
   const matchupRows = useMemo(() => {
     if (!focusTeam) return []
@@ -155,6 +160,17 @@ export default function NextGamePrediction({ block }: Props) {
           </CollapsibleSection>
         )}
 
+        {focusTeam && synergyBoard.length > 0 && (
+          <CollapsibleSection
+            title="Lineup Synergy Board"
+            subtitle="Best 5-player groups with balanced guards, wings, bigs, and stable production"
+            isOpen={showSynergyBoard}
+            onToggle={() => setShowSynergyBoard(open => !open)}
+          >
+            <LineupSynergyBoard entries={synergyBoard} accent={focusColors.primary} />
+          </CollapsibleSection>
+        )}
+
         <CollapsibleSection
           title="Matchup Board"
           subtitle="Weighted and random forest team outlooks"
@@ -222,6 +238,52 @@ export default function NextGamePrediction({ block }: Props) {
         </CollapsibleSection>
       </div>
     </section>
+  )
+}
+
+function LineupSynergyBoard({
+  entries,
+  accent,
+}: {
+  entries: ReturnType<typeof analyzeLineupSynergy>
+  accent: string
+}) {
+  return (
+    <div className="bg-white px-4 py-4 md:px-5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {entries.map((entry, index) => (
+          <div key={entry.names.join('|')} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>
+                  Top Lineup {index + 1}
+                </div>
+                <div className="mt-2 text-lg font-semibold text-slate-900">{entry.score.toFixed(0)}</div>
+                <div className="text-[11px] text-slate-500">Synergy score</div>
+              </div>
+              <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+                {entry.balanceLabel}
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1.5">
+              {entry.names.map(name => (
+                <div key={name} className="text-[13px] font-medium text-slate-700">{name}</div>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {entry.highlights.map(highlight => (
+                <div key={highlight.label} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{highlight.label}</div>
+                  <div className="mt-1 text-[13px] font-semibold text-slate-800">{highlight.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -543,56 +605,16 @@ function analyzeLineupImpact(
   const lineupPlayers = team.players.filter(player => lineupIds.includes(player.player_id))
   const selected = lineupPlayers.length ? lineupPlayers : team.players.slice(0, 5)
 
-  const weightedAverage = (players: typeof selected, getter: (player: typeof selected[number]) => number) => {
-    const totalMinutes = players.reduce((sum, player) => sum + Math.max(player.min, 0), 0)
-    if (totalMinutes <= 0) {
-      return players.length ? players.reduce((sum, player) => sum + getter(player), 0) / players.length : 0
-    }
-    return players.reduce((sum, player) => sum + getter(player) * Math.max(player.min, 0), 0) / totalMinutes
-  }
-
   const teamPool = team.players.filter(player => player.gp >= 3 && player.min >= 6)
   const baselinePool = teamPool.length ? teamPool : team.players
-  const trueShooting = (player: typeof selected[number]) =>
-    player.fga + 0.44 * player.fta > 0 ? player.pts / (2 * (player.fga + 0.44 * player.fta)) : 0
-  const gravityScore = (player: typeof selected[number]) => player.fg3a * player.fg3_pct
-  const creationLoad = (player: typeof selected[number]) => player.ast
-  const defenseActivity = (player: typeof selected[number]) => player.stl * 1.7 + player.blk * 1.5 + player.dreb * 0.28 + player.oreb * 0.18
-  const reboundRate = (player: typeof selected[number]) => player.reb
-  const ballSecurityValue = (player: typeof selected[number]) => player.tov > 0 ? player.ast / player.tov : player.ast
-  const classifyRole = (player: typeof selected[number]) => {
-    if (player.ast >= player.reb * 0.8 && player.reb < 6.5) return 'guard'
-    if (player.reb >= 6.8 || player.blk >= 0.8 || player.oreb >= 1.4) return 'big'
-    return 'wing'
-  }
-
-  const ts = weightedAverage(selected, trueShooting)
-  const shootingGravity = weightedAverage(selected, gravityScore)
-  const creation = weightedAverage(selected, creationLoad)
-  const defense = weightedAverage(selected, defenseActivity)
-  const rebounding = weightedAverage(selected, reboundRate)
-  const ballSecurity = weightedAverage(selected, ballSecurityValue)
-  const selectedGuards = selected.filter(player => classifyRole(player) === 'guard').length
-  const selectedBigs = selected.filter(player => classifyRole(player) === 'big').length
-  const selectedWings = selected.filter(player => classifyRole(player) === 'wing').length
-
-  const baseline = {
-    shootingGravity: weightedAverage(baselinePool, gravityScore),
-    creation: weightedAverage(baselinePool, creationLoad),
-    defense: weightedAverage(baselinePool, defenseActivity),
-    rebounding: weightedAverage(baselinePool, reboundRate),
-    ballSecurity: weightedAverage(baselinePool, ballSecurityValue),
-    ts: weightedAverage(baselinePool, trueShooting),
-  }
-
-  const deltas = {
-    shootingGravity: shootingGravity - baseline.shootingGravity,
-    creation: creation - baseline.creation,
-    defense: defense - baseline.defense,
-    rebounding: rebounding - baseline.rebounding,
-    ballSecurity: ballSecurity - baseline.ballSecurity,
-    ts: (ts - baseline.ts) * 100,
-  }
+  const composite = scoreLineupProfile(selected, baselinePool)
+  const {
+    baseline,
+    values,
+    deltas,
+    roleCounts,
+    totalScore,
+  } = composite
 
   const rankedEdges = [
     { key: 'shootingGravity', label: '3-point shooting', delta: deltas.shootingGravity },
@@ -610,48 +632,14 @@ function analyzeLineupImpact(
     : 'This lineup looks balanced but not clearly additive.'
   const summary = `${selected.map(player => player.name.split(' ').slice(-1)[0]).join(', ')} are minute-weighted together, then compared with the broader team rotation baseline${positives.length ? ` to show stronger ${positives.join(' and ').toLowerCase()}` : ''}${negatives.length ? `, but a dip in ${negatives.join(' and ').toLowerCase()}` : ''}.`
 
-  const guardTarget = selected.length >= 5 ? 2 : Math.max(1, Math.round(selected.length * 0.4))
-  const bigTarget = selected.length >= 5 ? 1 : Math.max(1, Math.round(selected.length * 0.2))
-  const wingTarget = Math.max(1, selected.length - guardTarget - bigTarget)
-  const balancePenalty =
-    Math.abs(selectedGuards - guardTarget) * 5 +
-    Math.abs(selectedBigs - bigTarget) * 7 +
-    Math.abs(selectedWings - wingTarget) * 3
-
-  const smoothContribution = (delta: number, scale: number, weight: number, deadZone = 0) => {
-    const adjusted = Math.abs(delta) <= deadZone ? 0 : delta - Math.sign(delta) * deadZone
-    return (adjusted / (Math.abs(adjusted) + scale)) * weight
-  }
-
-  const scoreContributions = {
-    shootingGravity: smoothContribution(deltas.shootingGravity, 0.14, 11, 0.01),
-    creation: smoothContribution(deltas.creation, 0.4, 8, 0.03),
-    defense: smoothContribution(deltas.defense, 0.38, 8, 0.03),
-    rebounding: smoothContribution(deltas.rebounding, 0.45, 7, 0.04),
-    ballSecurity: smoothContribution(deltas.ballSecurity, 0.3, 4.5, 0.06),
-    ts: smoothContribution(deltas.ts, 2.8, 9, 0.2),
-  }
-  const blendedScore =
-    50 +
-    scoreContributions.shootingGravity +
-    scoreContributions.creation +
-    scoreContributions.defense +
-    scoreContributions.rebounding +
-    scoreContributions.ballSecurity +
-    scoreContributions.ts -
-    balancePenalty
-  const averageLineupScore = 50
-  const totalScore = Math.max(1, Math.min(99, blendedScore))
-  const totalDelta = totalScore - averageLineupScore
-
   return {
     metrics: [
-      buildMetricCard('3PT Percentage', `${(weightedAverage(selected, player => player.fg3_pct) * 100).toFixed(1)}%`, `${(weightedAverage(baselinePool, player => player.fg3_pct) * 100).toFixed(1)}%`, deltas.shootingGravity, 0.18, 35, 'better 3-point shooting', 'worse 3-point shooting', ''),
-      buildMetricCard('Creation', `${creation.toFixed(1)} AST`, `${baseline.creation.toFixed(1)} AST`, deltas.creation, 0.5, 5, 'more creation', 'less creation', ''),
-      buildMetricCard('Def Contribution', `${defense.toFixed(1)} score`, `${baseline.defense.toFixed(1)} score`, deltas.defense, 0.45, 8, 'more defensive contribution', 'less defensive contribution', ''),
-      buildMetricCard('Rebounding', `${rebounding.toFixed(1)} REB`, `${baseline.rebounding.toFixed(1)} REB`, deltas.rebounding, 0.5, 8, 'better on the glass', 'weaker on the glass', ''),
-      buildMetricCard('Ball Security', `${ballSecurity.toFixed(1)} AST/TO`, `${baseline.ballSecurity.toFixed(1)} AST/TO`, deltas.ballSecurity, 0.25, 4, 'cleaner with the ball', 'looser with the ball', ''),
-      buildMetricCard('Efficiency', `${(ts * 100).toFixed(0)} TS%`, `${(baseline.ts * 100).toFixed(0)} TS%`, deltas.ts, 3, 18, 'more efficient', 'less efficient', ' pts'),
+      buildMetricCard('3PT Percentage', `${(values.fg3Pct * 100).toFixed(1)}%`, `${(baseline.fg3Pct * 100).toFixed(1)}%`, deltas.shootingGravity, 0.18, 35, 'better 3-point shooting', 'worse 3-point shooting', ''),
+      buildMetricCard('Creation', `${values.creation.toFixed(1)} AST`, `${baseline.creation.toFixed(1)} AST`, deltas.creation, 0.5, 5, 'more creation', 'less creation', ''),
+      buildMetricCard('Def Contribution', `${values.defense.toFixed(1)} score`, `${baseline.defense.toFixed(1)} score`, deltas.defense, 0.45, 8, 'more defensive contribution', 'less defensive contribution', ''),
+      buildMetricCard('Rebounding', `${values.rebounding.toFixed(1)} REB`, `${baseline.rebounding.toFixed(1)} REB`, deltas.rebounding, 0.5, 8, 'better on the glass', 'weaker on the glass', ''),
+      buildMetricCard('Ball Security', `${values.ballSecurity.toFixed(1)} AST/TO`, `${baseline.ballSecurity.toFixed(1)} AST/TO`, deltas.ballSecurity, 0.25, 4, 'cleaner with the ball', 'looser with the ball', ''),
+      buildMetricCard('Efficiency', `${(values.ts * 100).toFixed(0)} TS%`, `${(baseline.ts * 100).toFixed(0)} TS%`, deltas.ts, 3, 18, 'more efficient', 'less efficient', ' pts'),
     ],
     headline,
     summary,
@@ -661,11 +649,163 @@ function analyzeLineupImpact(
       negatives[0] ? `- ${negatives[0]}` : 'No major weakness',
     ],
     totalScore: {
-      score: totalScore,
-      baseline: averageLineupScore,
-      delta: totalDelta,
-      fill: Math.max(8, Math.min(100, totalScore)),
-      detail: `This score blends shooting, creation, defense, rebounding, ball security, efficiency, and an implicit lineup-balance check for guards, wings, and bigs. Small stat changes are intentionally damped so one tiny swing does not overreact. Current mix: ${selectedGuards} guard${selectedGuards === 1 ? '' : 's'}, ${selectedWings} wing${selectedWings === 1 ? '' : 's'}, ${selectedBigs} big${selectedBigs === 1 ? '' : 's'}.`,
+      score: totalScore.score,
+      baseline: totalScore.baseline,
+      delta: totalScore.delta,
+      fill: totalScore.fill,
+      detail: `This score blends shooting, creation, defense, rebounding, ball security, efficiency, and an implicit lineup-balance check for guards, wings, and bigs. Small stat changes are intentionally damped so one tiny swing does not overreact. Current mix: ${roleCounts.guards} guard${roleCounts.guards === 1 ? '' : 's'}, ${roleCounts.wings} wing${roleCounts.wings === 1 ? '' : 's'}, ${roleCounts.bigs} big${roleCounts.bigs === 1 ? '' : 's'}.`,
+    },
+  }
+}
+
+function analyzeLineupSynergy(team: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>) {
+  const eligible = team.players
+    .filter(player => player.gp >= 4 && player.min >= 6)
+    .slice(0, 10)
+
+  if (eligible.length < 5) {
+    return []
+  }
+
+  const combinations: Array<typeof eligible> = []
+  for (let a = 0; a < eligible.length - 4; a++) {
+    for (let b = a + 1; b < eligible.length - 3; b++) {
+      for (let c = b + 1; c < eligible.length - 2; c++) {
+        for (let d = c + 1; d < eligible.length - 1; d++) {
+          for (let e = d + 1; e < eligible.length; e++) {
+            combinations.push([eligible[a], eligible[b], eligible[c], eligible[d], eligible[e]])
+          }
+        }
+      }
+    }
+  }
+
+  return combinations
+    .map(lineup => {
+      const composite = scoreLineupProfile(lineup, eligible)
+
+      return {
+        lineup,
+        score: composite.totalScore.score,
+        guards: composite.roleCounts.guards,
+        wings: composite.roleCounts.wings,
+        bigs: composite.roleCounts.bigs,
+        overlapKey: lineup.map(player => player.player_id).sort((x, y) => x - y).join('-'),
+        highlights: [
+          { label: '3PT', value: `${(composite.values.fg3Pct * 100).toFixed(1)}%` },
+          { label: 'TS%', value: `${(composite.values.ts * 100).toFixed(0)}%` },
+          { label: 'AST', value: composite.values.creation.toFixed(1) },
+          { label: 'REB', value: composite.values.rebounding.toFixed(1) },
+        ],
+        balanceLabel: `${composite.roleCounts.guards}G • ${composite.roleCounts.wings}W • ${composite.roleCounts.bigs}B`,
+        names: lineup.map(player => player.name),
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+    .filter((entry, index, all) => all.findIndex(other => other.overlapKey === entry.overlapKey) === index && index < 3)
+    .slice(0, 3)
+    .map(({ overlapKey: _overlapKey, lineup: _lineup, ...entry }) => entry)
+}
+
+function scoreLineupProfile(
+  players: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>['players'],
+  baselinePool: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>['players']
+) {
+  const weightedAverage = (
+    sourcePlayers: typeof players,
+    getter: (player: typeof players[number]) => number
+  ) => {
+    const totalMinutes = sourcePlayers.reduce((sum, player) => sum + Math.max(player.min, 0), 0)
+    if (totalMinutes <= 0) {
+      return sourcePlayers.length ? sourcePlayers.reduce((sum, player) => sum + getter(player), 0) / sourcePlayers.length : 0
+    }
+    return sourcePlayers.reduce((sum, player) => sum + getter(player) * Math.max(player.min, 0), 0) / totalMinutes
+  }
+
+  const trueShooting = (player: typeof players[number]) =>
+    player.fga + 0.44 * player.fta > 0 ? player.pts / (2 * (player.fga + 0.44 * player.fta)) : 0
+  const gravityScore = (player: typeof players[number]) => player.fg3a * player.fg3_pct
+  const creationLoad = (player: typeof players[number]) => player.ast
+  const defenseActivity = (player: typeof players[number]) => player.stl * 1.7 + player.blk * 1.5 + player.dreb * 0.28 + player.oreb * 0.18
+  const reboundRate = (player: typeof players[number]) => player.reb
+  const ballSecurityValue = (player: typeof players[number]) => player.tov > 0 ? player.ast / player.tov : player.ast
+  const classifyRole = (player: typeof players[number]) => {
+    if (player.ast >= player.reb * 0.8 && player.reb < 6.5) return 'guard'
+    if (player.reb >= 6.8 || player.blk >= 0.8 || player.oreb >= 1.4) return 'big'
+    return 'wing'
+  }
+
+  const values = {
+    ts: weightedAverage(players, trueShooting),
+    shootingGravity: weightedAverage(players, gravityScore),
+    fg3Pct: weightedAverage(players, player => player.fg3_pct),
+    creation: weightedAverage(players, creationLoad),
+    defense: weightedAverage(players, defenseActivity),
+    rebounding: weightedAverage(players, reboundRate),
+    ballSecurity: weightedAverage(players, ballSecurityValue),
+  }
+
+  const baseline = {
+    ts: weightedAverage(baselinePool, trueShooting),
+    shootingGravity: weightedAverage(baselinePool, gravityScore),
+    fg3Pct: weightedAverage(baselinePool, player => player.fg3_pct),
+    creation: weightedAverage(baselinePool, creationLoad),
+    defense: weightedAverage(baselinePool, defenseActivity),
+    rebounding: weightedAverage(baselinePool, reboundRate),
+    ballSecurity: weightedAverage(baselinePool, ballSecurityValue),
+  }
+
+  const deltas = {
+    shootingGravity: values.shootingGravity - baseline.shootingGravity,
+    creation: values.creation - baseline.creation,
+    defense: values.defense - baseline.defense,
+    rebounding: values.rebounding - baseline.rebounding,
+    ballSecurity: values.ballSecurity - baseline.ballSecurity,
+    ts: (values.ts - baseline.ts) * 100,
+  }
+
+  const roleCounts = {
+    guards: players.filter(player => classifyRole(player) === 'guard').length,
+    wings: players.filter(player => classifyRole(player) === 'wing').length,
+    bigs: players.filter(player => classifyRole(player) === 'big').length,
+  }
+
+  const guardTarget = players.length >= 5 ? 2 : Math.max(1, Math.round(players.length * 0.4))
+  const bigTarget = players.length >= 5 ? 1 : Math.max(1, Math.round(players.length * 0.2))
+  const wingTarget = Math.max(1, players.length - guardTarget - bigTarget)
+  const balancePenalty =
+    Math.abs(roleCounts.guards - guardTarget) * 3 +
+    Math.abs(roleCounts.bigs - bigTarget) * 4 +
+    Math.abs(roleCounts.wings - wingTarget) * 2
+
+  const smoothContribution = (delta: number, scale: number, weight: number, deadZone = 0) => {
+    const adjusted = Math.abs(delta) <= deadZone ? 0 : delta - Math.sign(delta) * deadZone
+    return (adjusted / (Math.abs(adjusted) + scale)) * weight
+  }
+
+  const rawDelta =
+    smoothContribution(deltas.shootingGravity, 0.14, 11, 0.01) +
+    smoothContribution(deltas.creation, 0.4, 8, 0.03) +
+    smoothContribution(deltas.defense, 0.38, 8, 0.03) +
+    smoothContribution(deltas.rebounding, 0.45, 7, 0.04) +
+    smoothContribution(deltas.ballSecurity, 0.3, 4.5, 0.06) +
+    smoothContribution(deltas.ts, 2.8, 9, 0.2) -
+    Math.min(12, balancePenalty)
+
+  const boundedDelta = Math.max(-24, Math.min(24, rawDelta))
+  const score = Math.max(1, Math.min(99, 50 + boundedDelta))
+  const baselineScore = 50
+
+  return {
+    values,
+    baseline,
+    deltas,
+    roleCounts,
+    totalScore: {
+      score,
+      baseline: baselineScore,
+      delta: score - baselineScore,
+      fill: Math.max(8, Math.min(100, score)),
     },
   }
 }
