@@ -11,6 +11,7 @@ import PlayerComparison from './PlayerComparison'
 import GrowthChart from './GrowthChart'
 import AdvancedStats from './AdvancedStats'
 import NextGamePrediction from './NextGamePrediction'
+import { buildPlayerImpactIndex } from '../utils/playerImpact'
 
 import rawData from '../data/wnba_data.json'
 
@@ -42,6 +43,8 @@ export default function Dashboard() {
     }
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]))
   }, [allPlayers])
+
+  const impactIndex = useMemo(() => buildPlayerImpactIndex(allPlayers), [allPlayers])
 
   const player = useMemo(() => allPlayers.find(p => p.player_id === playerId) ?? null, [allPlayers, playerId])
   const games = useMemo(() => (playerId && block ? block.game_logs[String(playerId)] ?? [] : []), [block, playerId])
@@ -194,7 +197,17 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <PlayerCard player={player} teamColor={teamColor!} />
+              <PlayerCard
+                player={player}
+                teamColor={teamColor!}
+                impactIndex={impactIndex.byPlayerId[player.player_id]
+                  ? {
+                      score: impactIndex.byPlayerId[player.player_id].score,
+                      average: impactIndex.averageScore,
+                      summary: impactIndex.byPlayerId[player.player_id].summary,
+                    }
+                  : null}
+              />
               <div className="lg:col-span-2">
                 <StatsRadar player={player} leagueAvg={leagueAvg} positionAvg={positionAvg} teamColor={teamColor!} compareStats={comparePlayer} compareName={comparePlayer?.name} />
               </div>

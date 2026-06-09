@@ -3,14 +3,40 @@ import type { LeaguePlayer } from '../types'
 interface Props {
   player: LeaguePlayer
   teamColor: { primary: string; secondary: string; bg: string }
+  impactIndex?: { score: number; average: number; summary: string } | null
 }
 
-export default function PlayerCard({ player, teamColor }: Props) {
+export default function PlayerCard({ player, teamColor, impactIndex }: Props) {
   const s = player
 
   return (
     <div className="rounded-2xl p-6 transition-all" style={{ background: 'white', border: `1px solid ${teamColor.primary}15` }}>
       <div className="space-y-4">
+        {impactIndex && (
+          <>
+            <div className="rounded-2xl border px-4 py-4" style={{ borderColor: `${teamColor.primary}22`, background: `${teamColor.primary}08` }}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">Player Impact Index</div>
+                  <div className="mt-2 text-4xl font-light tracking-tight" style={{ color: teamColor.primary, fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                    {impactIndex.score.toFixed(0)}
+                  </div>
+                  <div className="mt-1 text-[12px] text-slate-500">
+                    Average player: <span className="font-semibold text-slate-700">{impactIndex.average.toFixed(0)}</span>
+                  </div>
+                </div>
+                <div className="min-w-[92px] rounded-full border border-slate-200 bg-white px-3 py-1.5 text-center">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">League Avg</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">{impactIndex.average.toFixed(0)}</div>
+                </div>
+              </div>
+              <div className="mt-3 text-[12px] leading-5 text-slate-600">{impactIndex.summary}</div>
+            </div>
+
+            <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
+          </>
+        )}
+
         {/* main stat - ppg */}
         <div className="text-center">
           <div className="text-5xl font-light tracking-tight" style={{ color: teamColor.primary, fontFamily: "'DM Serif Display', Georgia, serif" }}>{s.pts.toFixed(1)}</div>
