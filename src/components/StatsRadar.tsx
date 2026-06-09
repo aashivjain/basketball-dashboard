@@ -41,7 +41,7 @@ export default function StatsRadar({ player, leagueAvg, positionAvg, teamColor, 
   })
 
   return (
-    <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
+    <div className="h-full rounded-2xl p-5 bg-white flex flex-col" style={{ border: `1px solid ${teamColor.primary}15` }}>
       <div className="flex items-center gap-4 mb-2 text-xs flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full" style={{ background: teamColor.primary }}></div>
@@ -64,35 +64,37 @@ export default function StatsRadar({ player, leagueAvg, positionAvg, teamColor, 
           </div>
         )}
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <RadarChart data={chartData}>
-          <PolarGrid stroke="#e2e8f0" />
-          <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: '#64748b' }} />
-          <Radar name="League Avg" dataKey="league" stroke="#f59e0b" strokeDasharray="3 3" fill="#f59e0b" fillOpacity={0.04} />
-          {positionAvg && (
-            <Radar name={`${positionAvg.label} Avg`} dataKey="position" stroke="#8b5cf6" strokeDasharray="5 3" fill="#8b5cf6" fillOpacity={0.05} strokeWidth={1.5} />
-          )}
-          <Radar name={player.name} dataKey="player" stroke={teamColor.primary} fill={teamColor.primary} fillOpacity={0.12} strokeWidth={2} />
-          {compareStats && (
-            <Radar name={compareName} dataKey="compare" stroke={teamColor.secondary} fill={teamColor.secondary} fillOpacity={0.06} strokeWidth={1.5} />
-          )}
-          <Tooltip
-            content={({ payload }) => {
-              if (!payload?.length) return null
-              const d = payload[0]?.payload
-              return (
-                <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-3 text-xs">
-                  <div className="font-medium text-slate-700 mb-1">{d.stat}</div>
-                  <div style={{ color: teamColor.primary }}>{player.name}: {d.playerRaw}</div>
-                  {d.posRaw && <div style={{ color: '#8b5cf6' }}>{positionAvg?.label} Avg: {d.posRaw}</div>}
-                  <div style={{ color: '#f59e0b' }}>League: {d.leagueRaw}</div>
-                  {d.compareRaw && <div style={{ color: teamColor.secondary }}>{compareName}: {d.compareRaw}</div>}
-                </div>
-              )
-            }}
-          />
-        </RadarChart>
-      </ResponsiveContainer>
+      <div className="flex-1 min-h-[360px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={chartData}>
+            <PolarGrid stroke="#e2e8f0" />
+            <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: '#64748b' }} />
+            <Radar name="League Avg" dataKey="league" stroke="#f59e0b" strokeDasharray="3 3" fill="#f59e0b" fillOpacity={0.04} />
+            {positionAvg && (
+              <Radar name={`${positionAvg.label} Avg`} dataKey="position" stroke="#8b5cf6" strokeDasharray="5 3" fill="#8b5cf6" fillOpacity={0.05} strokeWidth={1.5} />
+            )}
+            <Radar name={player.name} dataKey="player" stroke={teamColor.primary} fill={teamColor.primary} fillOpacity={0.12} strokeWidth={2} />
+            {compareStats && (
+              <Radar name={compareName} dataKey="compare" stroke={teamColor.secondary} fill={teamColor.secondary} fillOpacity={0.06} strokeWidth={1.5} />
+            )}
+            <Tooltip
+              content={({ payload }) => {
+                if (!payload?.length) return null
+                const d = payload[0]?.payload
+                return (
+                  <div className="bg-white rounded-lg shadow-lg border border-slate-100 p-3 text-xs">
+                    <div className="font-medium text-slate-700 mb-1">{d.stat}</div>
+                    <div style={{ color: teamColor.primary }}>{player.name}: {d.playerRaw}</div>
+                    {d.posRaw && <div style={{ color: '#8b5cf6' }}>{positionAvg?.label} Avg: {d.posRaw}</div>}
+                    <div style={{ color: '#f59e0b' }}>League: {d.leagueRaw}</div>
+                    {d.compareRaw && <div style={{ color: teamColor.secondary }}>{compareName}: {d.compareRaw}</div>}
+                  </div>
+                )
+              }}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

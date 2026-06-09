@@ -10,8 +10,8 @@ export default function PlayerCard({ player, teamColor, impactIndex }: Props) {
   const s = player
 
   return (
-    <div className="rounded-2xl p-6 transition-all" style={{ background: 'white', border: `1px solid ${teamColor.primary}15` }}>
-      <div className="space-y-4">
+    <div className="h-full rounded-2xl p-6 transition-all flex" style={{ background: 'white', border: `1px solid ${teamColor.primary}15` }}>
+      <div className="space-y-4 flex flex-col w-full h-full">
         {impactIndex && (
           <>
             <div className="rounded-2xl border px-4 py-4" style={{ borderColor: `${teamColor.primary}22`, background: `${teamColor.primary}08` }}>
@@ -54,7 +54,7 @@ export default function PlayerCard({ player, teamColor, impactIndex }: Props) {
 
         <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
 
-        <div className="grid grid-cols-3 gap-3 text-center py-2">
+        <div className="grid grid-cols-3 gap-3 text-center py-2 mt-auto">
           <MiniStat label="FG%" value={`${(s.fg_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
           <MiniStat label="3P%" value={`${(s.fg3_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
           <MiniStat label="FT%" value={`${(s.ft_pct * 100).toFixed(1)}%`} color={teamColor.primary} />

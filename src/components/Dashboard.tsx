@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import type { WnbaDashboardData, SeasonData, LeaguePlayer } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
@@ -71,6 +71,27 @@ export default function Dashboard() {
 
   const teamColor = player ? getTeamColors(player.team) : null
 
+  useEffect(() => {
+    if (!availableSeasons.includes(season) && availableSeasons.length > 0) {
+      setSeason(availableSeasons[availableSeasons.length - 1])
+    }
+  }, [season])
+
+  useEffect(() => {
+    if (!allPlayers.length) {
+      setPlayerId(null)
+      setCompareId(null)
+      setShowCompare(false)
+      return
+    }
+
+    if (playerId === null || !allPlayers.some(player => player.player_id === playerId)) {
+      setPlayerId(allPlayers[0]?.player_id ?? null)
+      setCompareId(null)
+      setShowCompare(false)
+    }
+  }, [allPlayers, playerId])
+
   // Compute position averages by classifying players into Guard/Wing/Big
   const positionAvg = useMemo(() => {
     if (!player || allPlayers.length === 0) return null
@@ -117,20 +138,25 @@ export default function Dashboard() {
             >Teams</button>
           </nav>
 
-          <div className="flex items-center gap-2 text-sm">
+          <select
+            value={season}
+            onChange={e => setSeason(e.target.value)}
+            className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all appearance-none"
+            style={{
+              border: '1.5px solid #cbd5e1',
+              background: 'white',
+              color: '#334155',
+              minWidth: '92px',
+              paddingRight: '2rem',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+            }}
+          >
             {availableSeasons.map(yr => (
-              <button
-                key={yr}
-                onClick={() => setSeason(yr)}
-                className="transition-all px-2 py-0.5 rounded-full"
-                style={{
-                  background: season === yr ? '#1e293b' : 'transparent',
-                  color: season === yr ? '#fff' : '#94a3b8',
-                  fontSize: '13px',
-                }}
-              >{yr}</button>
+              <option key={yr} value={yr}>{yr}</option>
             ))}
-          </div>
+          </select>
 
           <div className="flex gap-2 text-sm">
             {(['regular_season', 'playoffs'] as const).map(st => (
@@ -196,7 +222,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
               <PlayerCard
                 player={player}
                 teamColor={teamColor!}
@@ -208,7 +234,7 @@ export default function Dashboard() {
                     }
                   : null}
               />
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 h-full">
                 <StatsRadar player={player} leagueAvg={leagueAvg} positionAvg={positionAvg} teamColor={teamColor!} compareStats={comparePlayer} compareName={comparePlayer?.name} />
               </div>
             </div>

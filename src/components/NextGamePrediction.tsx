@@ -617,6 +617,7 @@ function analyzeLineupImpact(
   } = composite
 
   const rankedEdges = [
+    { key: 'ts', label: 'Efficiency', delta: deltas.ts },
     { key: 'shootingGravity', label: '3-point shooting', delta: deltas.shootingGravity },
     { key: 'creation', label: 'Creation', delta: deltas.creation },
     { key: 'defense', label: 'Stocks + boards', delta: deltas.defense },
@@ -634,12 +635,12 @@ function analyzeLineupImpact(
 
   return {
     metrics: [
+      buildMetricCard('Efficiency', `${(values.ts * 100).toFixed(0)} TS%`, `${(baseline.ts * 100).toFixed(0)} TS%`, deltas.ts, 3, 18, 'more efficient', 'less efficient', ' pts'),
       buildMetricCard('3PT Percentage', `${(values.fg3Pct * 100).toFixed(1)}%`, `${(baseline.fg3Pct * 100).toFixed(1)}%`, deltas.shootingGravity, 0.18, 35, 'better 3-point shooting', 'worse 3-point shooting', ''),
       buildMetricCard('Creation', `${values.creation.toFixed(1)} AST`, `${baseline.creation.toFixed(1)} AST`, deltas.creation, 0.5, 5, 'more creation', 'less creation', ''),
       buildMetricCard('Def Contribution', `${values.defense.toFixed(1)} score`, `${baseline.defense.toFixed(1)} score`, deltas.defense, 0.45, 8, 'more defensive contribution', 'less defensive contribution', ''),
       buildMetricCard('Rebounding', `${values.rebounding.toFixed(1)} REB`, `${baseline.rebounding.toFixed(1)} REB`, deltas.rebounding, 0.5, 8, 'better on the glass', 'weaker on the glass', ''),
       buildMetricCard('Ball Security', `${values.ballSecurity.toFixed(1)} AST/TO`, `${baseline.ballSecurity.toFixed(1)} AST/TO`, deltas.ballSecurity, 0.25, 4, 'cleaner with the ball', 'looser with the ball', ''),
-      buildMetricCard('Efficiency', `${(values.ts * 100).toFixed(0)} TS%`, `${(baseline.ts * 100).toFixed(0)} TS%`, deltas.ts, 3, 18, 'more efficient', 'less efficient', ' pts'),
     ],
     headline,
     summary,
@@ -662,6 +663,8 @@ function analyzeLineupSynergy(team: NonNullable<ReturnType<typeof buildTeamProfi
   const eligible = team.players
     .filter(player => player.gp >= 4 && player.min >= 6)
     .slice(0, 10)
+  const teamPool = team.players.filter(player => player.gp >= 3 && player.min >= 6)
+  const baselinePool = teamPool.length ? teamPool : team.players
 
   if (eligible.length < 5) {
     return []
@@ -682,7 +685,7 @@ function analyzeLineupSynergy(team: NonNullable<ReturnType<typeof buildTeamProfi
 
   return combinations
     .map(lineup => {
-      const composite = scoreLineupProfile(lineup, eligible)
+      const composite = scoreLineupProfile(lineup, baselinePool)
 
       return {
         lineup,
@@ -692,8 +695,8 @@ function analyzeLineupSynergy(team: NonNullable<ReturnType<typeof buildTeamProfi
         bigs: composite.roleCounts.bigs,
         overlapKey: lineup.map(player => player.player_id).sort((x, y) => x - y).join('-'),
         highlights: [
-          { label: '3PT', value: `${(composite.values.fg3Pct * 100).toFixed(1)}%` },
           { label: 'TS%', value: `${(composite.values.ts * 100).toFixed(0)}%` },
+          { label: '3PT', value: `${(composite.values.fg3Pct * 100).toFixed(1)}%` },
           { label: 'AST', value: composite.values.creation.toFixed(1) },
           { label: 'REB', value: composite.values.rebounding.toFixed(1) },
         ],
@@ -757,6 +760,7 @@ function scoreLineupProfile(
 
   const deltas = {
     shootingGravity: values.shootingGravity - baseline.shootingGravity,
+    fg3Pct: (values.fg3Pct - baseline.fg3Pct) * 100,
     creation: values.creation - baseline.creation,
     defense: values.defense - baseline.defense,
     rebounding: values.rebounding - baseline.rebounding,
