@@ -181,9 +181,9 @@ export function buildPlayerImpactIndex(players: LeaguePlayer[]): PlayerImpactRes
   const byPlayerId: Record<number, PlayerImpactEntry> = {}
 
   for (const row of componentRows) {
-    const offensiveZ = clamp(zScore(row.offenseValue, means.offense, stdevs.offense), -2.5, 2.5)
-    const defensiveZ = clamp(zScore(row.defenseValue, means.defense, stdevs.defense), -2.5, 2.5)
-    const totalZ = clamp(zScore(row.totalValue, means.total, stdevs.total), -2.5, 2.5)
+    const offensiveZ = clamp(zScore(row.offenseValue, means.offense, stdevs.offense), -2.75, 2.75)
+    const defensiveZ = clamp(zScore(row.defenseValue, means.defense, stdevs.defense), -2.75, 2.75)
+    const totalZ = clamp(zScore(row.totalValue, means.total, stdevs.total), -2.75, 2.75)
     const blendedZ = totalZ * 0.55 + offensiveZ * 0.3 + defensiveZ * 0.15
     const score = clamp(50 + blendedZ * 12, 20, 95)
 

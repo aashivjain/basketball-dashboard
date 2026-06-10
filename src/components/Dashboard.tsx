@@ -70,6 +70,10 @@ export default function Dashboard() {
   }, [playerId])
 
   const teamColor = player ? getTeamColors(player.team) : null
+  const isPlayersOverview = section === 'players' && playerTab === 'overview'
+  const isPlayersCompare = section === 'players' && playerTab === 'compare'
+  const isPlayersRankings = section === 'players' && playerTab === 'rankings'
+  const showSeasonTypeToggle = section === 'players' || section === 'teams'
 
   useEffect(() => {
     if (!availableSeasons.includes(season) && availableSeasons.length > 0) {
@@ -120,94 +124,128 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen transition-colors duration-500" style={{ background: section === 'players' && teamColor ? teamColor.bg : '#fafafa' }}>
       <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/60" style={{ background: 'rgba(255,255,255,0.95)' }}>
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-5 flex-wrap">
-          <h1 className="text-xl tracking-tight mr-auto font-semibold" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>
-            WNBA Analytics
-          </h1>
+        <div className="max-w-6xl mx-auto px-6 py-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="mr-auto min-w-0 pr-2">
+              <h1 className="text-lg tracking-tight font-semibold" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>
+                WNBA Analytics
+              </h1>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {section === 'teams'
+                  ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoffs'} team dashboard`
+                  : isPlayersOverview
+                    ? `${season} player profile`
+                    : isPlayersCompare
+                      ? `${season} player comparison`
+                      : `${season} player rankings`}
+              </p>
+            </div>
 
-          <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
+            <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
             <button
               onClick={() => setSection('players')}
-              className="rounded-full px-3 py-1.5 transition-all"
+              className="rounded-full px-3 py-1 transition-all"
               style={{ background: section === 'players' ? '#1e293b' : 'transparent', color: section === 'players' ? '#fff' : '#64748b', fontWeight: 600 }}
             >Players</button>
             <button
               onClick={() => setSection('teams')}
-              className="rounded-full px-3 py-1.5 transition-all"
+              className="rounded-full px-3 py-1 transition-all"
               style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
             >Teams</button>
-          </nav>
+            </nav>
 
-          <select
-            value={season}
-            onChange={e => setSeason(e.target.value)}
-            className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all appearance-none"
-            style={{
-              border: '1.5px solid #cbd5e1',
-              background: 'white',
-              color: '#334155',
-              minWidth: '92px',
-              paddingRight: '2rem',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-            }}
-          >
-            {availableSeasons.map(yr => (
-              <option key={yr} value={yr}>{yr}</option>
-            ))}
-          </select>
+            <select
+              value={season}
+              onChange={e => setSeason(e.target.value)}
+              aria-label="Season"
+              className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all appearance-none"
+              style={{
+                border: '1.5px solid #cbd5e1',
+                background: 'white',
+                color: '#334155',
+                minWidth: '100px',
+                paddingRight: '2rem',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+              }}
+            >
+              {availableSeasons.map(yr => (
+                <option key={yr} value={yr}>{yr}</option>
+              ))}
+            </select>
 
-          <div className="flex gap-2 text-sm">
-            {(['regular_season', 'playoffs'] as const).map(st => (
-              <button
-                key={st}
-                onClick={() => setSeasonType(st)}
-                className="transition-all"
-                style={{ color: seasonType === st ? '#1e293b' : '#94a3b8', fontWeight: seasonType === st ? 600 : 400, fontSize: '13px' }}
-              >{st === 'regular_season' ? 'Regular' : 'Playoffs'}</button>
-            ))}
-          </div>
+            {showSeasonTypeToggle && (
+              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-sm">
+                {(['regular_season', 'playoffs'] as const).map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setSeasonType(st)}
+                    className="rounded-full px-3 py-1 transition-all"
+                    style={{
+                      background: seasonType === st ? '#e2e8f0' : 'transparent',
+                      color: seasonType === st ? '#0f172a' : '#94a3b8',
+                      fontWeight: seasonType === st ? 600 : 500,
+                      fontSize: '13px',
+                    }}
+                  >{st === 'regular_season' ? 'Regular' : 'Playoffs'}</button>
+                ))}
+              </div>
+            )}
 
-          {section === 'players' && (
-            <>
-              <nav className="flex gap-2 text-sm">
+            {section === 'players' && (
+              <>
+                <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-sm">
                 <button
                   onClick={() => setPlayerTab('overview')}
-                  className="transition-all"
-                  style={{ color: playerTab === 'overview' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'overview' ? 600 : 400 }}
+                  className="rounded-full px-3 py-1 transition-all"
+                  style={{ background: playerTab === 'overview' ? '#1e293b' : 'transparent', color: playerTab === 'overview' ? '#fff' : '#64748b', fontWeight: playerTab === 'overview' ? 600 : 500 }}
                 >Overview</button>
-                <span className="text-slate-300">|</span>
                 <button
                   onClick={() => setPlayerTab('compare')}
-                  className="transition-all"
-                  style={{ color: playerTab === 'compare' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'compare' ? 600 : 400 }}
+                  className="rounded-full px-3 py-1 transition-all"
+                  style={{ background: playerTab === 'compare' ? '#1e293b' : 'transparent', color: playerTab === 'compare' ? '#fff' : '#64748b', fontWeight: playerTab === 'compare' ? 600 : 500 }}
                 >Compare</button>
-                <span className="text-slate-300">|</span>
                 <button
                   onClick={() => setPlayerTab('rankings')}
-                  className="transition-all"
-                  style={{ color: playerTab === 'rankings' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'rankings' ? 600 : 400 }}
+                  className="rounded-full px-3 py-1 transition-all"
+                  style={{ background: playerTab === 'rankings' ? '#1e293b' : 'transparent', color: playerTab === 'rankings' ? '#fff' : '#64748b', fontWeight: playerTab === 'rankings' ? 600 : 500 }}
                 >Rankings</button>
-              </nav>
+                </nav>
 
-              <select
-                value={playerId ?? ''}
-                onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
-                className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all text-center appearance-none"
-                style={{ border: '1.5px solid #cbd5e1', background: 'white', color: '#334155', minWidth: '160px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
-              >
-                <option value="" disabled>Choose player</option>
-                {playersByTeam.map(([team, players]) => (
-                  <optgroup key={team} label={team}>
-                    {players.map(p => (
-                      <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                {isPlayersOverview && (
+                  <select
+                    value={playerId ?? ''}
+                    onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
+                    aria-label="Selected player"
+                    className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all appearance-none"
+                    style={{ border: '1.5px solid #cbd5e1', background: 'white', color: '#334155', minWidth: '220px', maxWidth: '320px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                  >
+                    <option value="" disabled>Choose player</option>
+                    {playersByTeam.map(([team, players]) => (
+                      <optgroup key={team} label={team}>
+                        {players.map(p => (
+                          <option key={p.player_id} value={p.player_id}>{p.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
-                  </optgroup>
-                ))}
-              </select>
-            </>
-          )}
+                  </select>
+                )}
+
+                {isPlayersCompare && (
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500">
+                    Pick both players below to compare this season.
+                  </div>
+                )}
+
+                {isPlayersRankings && (
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500">
+                    League-wide leaderboard for the selected season.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </header>
 
