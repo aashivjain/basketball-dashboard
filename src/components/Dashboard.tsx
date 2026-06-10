@@ -25,7 +25,7 @@ export default function Dashboard() {
   const [compareId, setCompareId] = useState<number | null>(null)
   const [showCompare, setShowCompare] = useState(false)
   const [section, setSection] = useState<'players' | 'teams'>('players')
-  const [playerTab, setPlayerTab] = useState<'overview' | 'compare'>('overview')
+  const [playerTab, setPlayerTab] = useState<'overview' | 'compare' | 'rankings'>('overview')
 
   const seasonData = data.seasons[season] as SeasonData | null
   const block = seasonData ? seasonData[seasonType] : null
@@ -183,6 +183,12 @@ export default function Dashboard() {
                   className="transition-all"
                   style={{ color: playerTab === 'compare' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'compare' ? 600 : 400 }}
                 >Compare</button>
+                <span className="text-slate-300">|</span>
+                <button
+                  onClick={() => setPlayerTab('rankings')}
+                  className="transition-all"
+                  style={{ color: playerTab === 'rankings' ? '#1e293b' : '#94a3b8', fontWeight: playerTab === 'rankings' ? 600 : 400 }}
+                >Rankings</button>
               </nav>
 
               <select
@@ -210,6 +216,8 @@ export default function Dashboard() {
           <NextGamePrediction block={block} />
         ) : playerTab === 'compare' ? (
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
+        ) : playerTab === 'rankings' ? (
+          <RankingsView allPlayers={allPlayers} season={season} impactIndex={impactIndex} />
         ) : !player || !leagueAvg ? (
           <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
         ) : (
@@ -291,6 +299,131 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+function RankingsView({
+  allPlayers,
+  season,
+  impactIndex,
+}: {
+  allPlayers: LeaguePlayer[]
+  season: string
+  impactIndex: ReturnType<typeof buildPlayerImpactIndex>
+}) {
+  const [metric, setMetric] = useState<'impact'>('impact')
+
+  const rankedPlayers = useMemo(() => {
+    if (metric !== 'impact') return []
+
+    return allPlayers
+      .filter(player => player.gp > 0 && impactIndex.byPlayerId[player.player_id])
+      .map(player => ({
+        player,
+        impact: impactIndex.byPlayerId[player.player_id],
+      }))
+      .sort((a, b) => b.impact.score - a.impact.score)
+      .slice(0, 50)
+  }, [allPlayers, impactIndex, metric])
+
+  const leader = rankedPlayers[0] ?? null
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>Player Rankings</h2>
+          <p className="text-sm text-slate-400 mt-1">{season} season &middot; League-wide leaderboard</p>
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1">
+          <button
+            onClick={() => setMetric('impact')}
+            className="rounded-full px-4 py-1.5 text-sm font-medium transition-all"
+            style={{ background: metric === 'impact' ? '#1e293b' : 'transparent', color: metric === 'impact' ? '#fff' : '#64748b' }}
+          >
+            Player Impact Index
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.9fr] gap-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">Most Impact</div>
+          {leader ? (
+            <div className="mt-4 space-y-4">
+              <div>
+                <div className="text-sm font-semibold" style={{ color: getTeamColors(leader.player.team).primary }}>{leader.player.team}</div>
+                <h3 className="text-3xl tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>{leader.player.name}</h3>
+              </div>
+
+              <div className="rounded-2xl p-4" style={{ background: getTeamColors(leader.player.team).bg }}>
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold">Player Impact Index</div>
+                <div className="mt-2 flex items-end gap-3">
+                  <div className="text-4xl font-semibold text-slate-900">{leader.impact.score.toFixed(1)}</div>
+                  <div className="pb-1 text-sm text-slate-500">League average {impactIndex.averageScore.toFixed(0)}</div>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{leader.impact.summary}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <MetricChip label="PTS" value={leader.player.pts.toFixed(1)} />
+                <MetricChip label="REB" value={leader.player.reb.toFixed(1)} />
+                <MetricChip label="AST" value={leader.player.ast.toFixed(1)} />
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-400">No ranking data available for this season.</p>
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 px-2 pb-3">
+            <div>
+              <h3 className="text-lg font-medium text-slate-900">Top 50</h3>
+              <p className="text-xs text-slate-400">Sorted by Player Impact Index</p>
+            </div>
+            <div className="text-xs text-slate-400">Average score: {impactIndex.averageScore.toFixed(0)}</div>
+          </div>
+
+          <div className="space-y-2">
+            {rankedPlayers.map((entry, index) => {
+              const tc = getTeamColors(entry.player.team)
+              return (
+                <div
+                  key={entry.player.player_id}
+                  className="grid grid-cols-[38px_minmax(0,1.35fr)_minmax(0,0.8fr)_78px] items-center gap-3 rounded-2xl border border-slate-100 px-3 py-3"
+                  style={{ background: index < 3 ? tc.bg : 'white' }}
+                >
+                  <div className="text-lg font-semibold text-slate-400">{index + 1}</div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-slate-900">{entry.player.name}</div>
+                    <div className="truncate text-xs text-slate-400">{entry.player.team} &middot; {entry.player.gp} GP &middot; {entry.player.min.toFixed(1)} MPG</div>
+                  </div>
+                  <div className="min-w-0 text-xs text-slate-500">
+                    <div>{entry.player.pts.toFixed(1)} PTS</div>
+                    <div>{entry.player.reb.toFixed(1)} REB • {entry.player.ast.toFixed(1)} AST</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-semibold" style={{ color: tc.primary }}>{entry.impact.score.toFixed(1)}</div>
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Impact</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
+      <div className="text-lg font-semibold text-slate-900">{value}</div>
+      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
     </div>
   )
 }
