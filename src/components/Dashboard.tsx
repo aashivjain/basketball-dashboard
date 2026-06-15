@@ -276,7 +276,7 @@ export default function Dashboard() {
         ) : playerTab === 'rankings' ? (
           <RankingsView allPlayers={allPlayers} season={season} impactIndex={impactIndex} />
         ) : playerTab === 'builder' ? (
-          <BuildPlayerView allPlayers={allPlayers} season={season} />
+          <BuildPlayerView key={`${season}-${seasonType}`} allPlayers={allPlayers} season={season} seasonType={seasonType} />
         ) : !player || !leagueAvg ? (
           <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
         ) : (
@@ -645,11 +645,47 @@ const defaultBuilderState: BuilderFormState = {
   plus_minus: 1.8,
 }
 
-function BuildPlayerView({ allPlayers, season }: { allPlayers: LeaguePlayer[]; season: string }) {
+const builderLimits: Record<Exclude<keyof BuilderFormState, 'name' | 'position'>, { min: number; max: number }> = {
+  gp: { min: 1, max: 44 },
+  min: { min: 1, max: 40 },
+  pts: { min: 0, max: 40 },
+  reb: { min: 0, max: 20 },
+  ast: { min: 0, max: 15 },
+  stl: { min: 0, max: 5 },
+  blk: { min: 0, max: 5 },
+  tov: { min: 0, max: 8 },
+  fga: { min: 0.1, max: 30 },
+  fg_pct: { min: 0, max: 1 },
+  fg3a: { min: 0, max: 15 },
+  fg3_pct: { min: 0, max: 1 },
+  fta: { min: 0, max: 15 },
+  ft_pct: { min: 0, max: 1 },
+  oreb: { min: 0, max: 8 },
+  dreb: { min: 0, max: 15 },
+  plus_minus: { min: -20, max: 20 },
+}
+
+function BuildPlayerView({
+  allPlayers,
+  season,
+  seasonType,
+}: {
+  allPlayers: LeaguePlayer[]
+  season: string
+  seasonType: 'regular_season' | 'playoffs'
+}) {
   const [form, setForm] = useState<BuilderFormState>(defaultBuilderState)
 
   const updateField = <K extends keyof BuilderFormState>(key: K, value: BuilderFormState[K]) => {
-    setForm(current => ({ ...current, [key]: value }))
+    setForm(current => {
+      if (key === 'name' || key === 'position') {
+        return { ...current, [key]: value }
+      }
+
+      const limits = builderLimits[key as Exclude<keyof BuilderFormState, 'name' | 'position'>]
+      const nextNumber = clamp(Number(value), limits.min, limits.max)
+      return { ...current, [key]: nextNumber as BuilderFormState[K] }
+    })
   }
 
   const customPlayer = useMemo<LeaguePlayer>(() => {
@@ -686,38 +722,56 @@ function BuildPlayerView({ allPlayers, season }: { allPlayers: LeaguePlayer[]; s
   }, [form])
 
   const customImpact = useMemo(() => {
+    if (!allPlayers.length) {
+      return { averageScore: 50, byPlayerId: {} }
+    }
     const withCustom = [...allPlayers, customPlayer]
     return buildPlayerImpactIndex(withCustom)
   }, [allPlayers, customPlayer])
 
   const customImpactEntry = customImpact.byPlayerId[customPlayer.player_id]
-  const ts =
-    customPlayer.fga + 0.44 * customPlayer.fta > 0
-      ? customPlayer.pts / (2 * (customPlayer.fga + 0.44 * customPlayer.fta))
-      : 0
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>Build Your Own Player</h2>
-        <p className="text-sm text-slate-400 mt-1">{season} season context &middot; estimate a custom player&apos;s impact before comparing them to real WNBA players</p>
+        <p className="text-sm text-slate-400 mt-1">
+          {season} {seasonType === 'regular_season' ? 'regular season' : 'playoffs'} context &middot; estimate a custom player&apos;s impact before comparing them to real WNBA players
+        </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.95fr] gap-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">Custom Profile</div>
+              <h3 className="mt-2 text-2xl tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                Shape the stat line
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">Type naturally into each field. Values stay capped to realistic WNBA ranges.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm(defaultBuilderState)}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
+            >
+              Reset build
+            </button>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-4">
             <Field label="Player name">
               <input
                 value={form.name}
                 onChange={e => updateField('name', e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none"
               />
             </Field>
             <Field label="Position">
               <select
                 value={form.position}
                 onChange={e => updateField('position', e.target.value as BuilderFormState['position'])}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none bg-white"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none"
               >
                 <option value="Guard">Guard</option>
                 <option value="Wing">Wing</option>
@@ -726,29 +780,43 @@ function BuildPlayerView({ allPlayers, season }: { allPlayers: LeaguePlayer[]; s
             </Field>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <NumberField label="Games" value={form.gp} step={1} onChange={value => updateField('gp', value)} />
-            <NumberField label="Minutes" value={form.min} step={0.1} onChange={value => updateField('min', value)} />
-            <NumberField label="Points" value={form.pts} step={0.1} onChange={value => updateField('pts', value)} />
-            <NumberField label="Rebounds" value={form.reb} step={0.1} onChange={value => updateField('reb', value)} />
-            <NumberField label="Assists" value={form.ast} step={0.1} onChange={value => updateField('ast', value)} />
-            <NumberField label="Steals" value={form.stl} step={0.1} onChange={value => updateField('stl', value)} />
-            <NumberField label="Blocks" value={form.blk} step={0.1} onChange={value => updateField('blk', value)} />
-            <NumberField label="Turnovers" value={form.tov} step={0.1} onChange={value => updateField('tov', value)} />
-            <NumberField label="FGA" value={form.fga} step={0.1} onChange={value => updateField('fga', value)} />
-            <PercentField label="FG%" value={form.fg_pct} onChange={value => updateField('fg_pct', value)} />
-            <NumberField label="3PA" value={form.fg3a} step={0.1} onChange={value => updateField('fg3a', value)} />
-            <PercentField label="3P%" value={form.fg3_pct} onChange={value => updateField('fg3_pct', value)} />
-            <NumberField label="FTA" value={form.fta} step={0.1} onChange={value => updateField('fta', value)} />
-            <PercentField label="FT%" value={form.ft_pct} onChange={value => updateField('ft_pct', value)} />
-            <NumberField label="OREB" value={form.oreb} step={0.1} onChange={value => updateField('oreb', value)} />
-            <NumberField label="DREB" value={form.dreb} step={0.1} onChange={value => updateField('dreb', value)} />
-          </div>
+          <div className="mt-5 space-y-5">
+            <BuilderSection title="Volume">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <NumberField label="Games" value={form.gp} step={1} min={builderLimits.gp.min} max={builderLimits.gp.max} onChange={value => updateField('gp', value)} />
+                <NumberField label="Minutes" value={form.min} step={0.5} min={builderLimits.min.min} max={builderLimits.min.max} onChange={value => updateField('min', value)} />
+                <NumberField label="Points" value={form.pts} step={0.5} min={builderLimits.pts.min} max={builderLimits.pts.max} onChange={value => updateField('pts', value)} />
+                <NumberField label="Turnovers" value={form.tov} step={0.5} min={builderLimits.tov.min} max={builderLimits.tov.max} onChange={value => updateField('tov', value)} />
+              </div>
+            </BuilderSection>
 
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <NumberField label="Plus/Minus" value={form.plus_minus} step={0.1} onChange={value => updateField('plus_minus', value)} />
-            <MetricPreview label="Estimated TS%" value={`${(ts * 100).toFixed(1)}%`} />
-            <MetricPreview label="Estimated FGM" value={customPlayer.fgm.toFixed(1)} />
+            <BuilderSection title="Playmaking and defense">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <NumberField label="Assists" value={form.ast} step={0.5} min={builderLimits.ast.min} max={builderLimits.ast.max} onChange={value => updateField('ast', value)} />
+                <NumberField label="Steals" value={form.stl} step={0.2} min={builderLimits.stl.min} max={builderLimits.stl.max} onChange={value => updateField('stl', value)} />
+                <NumberField label="Blocks" value={form.blk} step={0.2} min={builderLimits.blk.min} max={builderLimits.blk.max} onChange={value => updateField('blk', value)} />
+                <NumberField label="Plus/Minus" value={form.plus_minus} step={0.5} min={builderLimits.plus_minus.min} max={builderLimits.plus_minus.max} onChange={value => updateField('plus_minus', value)} />
+              </div>
+            </BuilderSection>
+
+            <BuilderSection title="Rebounding">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <NumberField label="Rebounds" value={form.reb} step={0.5} min={builderLimits.reb.min} max={builderLimits.reb.max} onChange={value => updateField('reb', value)} />
+                <NumberField label="OREB" value={form.oreb} step={0.2} min={builderLimits.oreb.min} max={builderLimits.oreb.max} onChange={value => updateField('oreb', value)} />
+                <NumberField label="DREB" value={form.dreb} step={0.2} min={builderLimits.dreb.min} max={builderLimits.dreb.max} onChange={value => updateField('dreb', value)} />
+              </div>
+            </BuilderSection>
+
+            <BuilderSection title="Shooting">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <NumberField label="FGA" value={form.fga} step={0.5} min={builderLimits.fga.min} max={builderLimits.fga.max} onChange={value => updateField('fga', value)} />
+                <PercentField label="FG%" value={form.fg_pct} onChange={value => updateField('fg_pct', value)} />
+                <NumberField label="3PA" value={form.fg3a} step={0.5} min={builderLimits.fg3a.min} max={builderLimits.fg3a.max} onChange={value => updateField('fg3a', value)} />
+                <PercentField label="3P%" value={form.fg3_pct} onChange={value => updateField('fg3_pct', value)} />
+                <NumberField label="FTA" value={form.fta} step={0.5} min={builderLimits.fta.min} max={builderLimits.fta.max} onChange={value => updateField('fta', value)} />
+                <PercentField label="FT%" value={form.ft_pct} onChange={value => updateField('ft_pct', value)} />
+              </div>
+            </BuilderSection>
           </div>
         </div>
 
@@ -763,12 +831,14 @@ function BuildPlayerView({ allPlayers, season }: { allPlayers: LeaguePlayer[]; s
             <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">Player Impact Index</div>
             <div className="mt-2 flex items-end gap-3">
               <div className="text-5xl font-light tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
-                {customImpactEntry ? customImpactEntry.score.toFixed(1) : '--'}
+                {allPlayers.length && customImpactEntry ? customImpactEntry.score.toFixed(1) : '--'}
               </div>
               <div className="pb-2 text-sm text-slate-500">Average {customImpact.averageScore.toFixed(0)}</div>
             </div>
             <p className="mt-3 text-sm text-slate-600">
-              {customImpactEntry?.summary ?? 'Impact estimate updates instantly from your custom statline.'}
+              {allPlayers.length
+                ? (customImpactEntry?.summary ?? 'Impact estimate updates instantly from your custom statline.')
+                : `No ${seasonType === 'regular_season' ? 'regular-season' : 'playoff'} player pool is loaded for ${season}, so the builder cannot benchmark this custom player yet.`}
             </p>
           </div>
 
@@ -776,7 +846,7 @@ function BuildPlayerView({ allPlayers, season }: { allPlayers: LeaguePlayer[]; s
             <MetricPreview label="PTS" value={customPlayer.pts.toFixed(1)} />
             <MetricPreview label="REB" value={customPlayer.reb.toFixed(1)} />
             <MetricPreview label="AST" value={customPlayer.ast.toFixed(1)} />
-            <MetricPreview label="3P%" value={`${(customPlayer.fg3_pct * 100).toFixed(1)}%`} />
+            <MetricPreview label="+/-" value={customPlayer.plus_minus.toFixed(1)} />
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
@@ -801,26 +871,85 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+function BuilderSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{title}</div>
+      <div className="mt-3">{children}</div>
+    </div>
+  )
+}
+
 function NumberField({
   label,
   value,
   onChange,
   step,
+  min,
+  max,
 }: {
   label: string
   value: number
   onChange: (value: number) => void
   step: number
+  min: number
+  max: number
 }) {
+  const [draft, setDraft] = useState(String(formatNumericValue(value, step)))
+
+  useEffect(() => {
+    setDraft(String(formatNumericValue(value, step)))
+  }, [step, value])
+
   return (
     <Field label={label}>
       <input
-        type="number"
-        value={Number.isFinite(value) ? value : 0}
-        step={step}
-        onChange={e => onChange(Number(e.target.value))}
-        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none"
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        onFocus={e => e.currentTarget.select()}
+        onChange={e => {
+          const next = e.target.value
+          setDraft(next)
+          if (next.trim() === '') {
+            return
+          }
+          const parsed = Number(next)
+          if (Number.isFinite(parsed)) onChange(clamp(parsed, min, max))
+        }}
+        onBlur={() => {
+          const parsed = Number(draft)
+          const safe = Number.isFinite(parsed) ? clamp(parsed, min, max) : value
+          onChange(safe)
+          setDraft(String(formatNumericValue(safe, step)))
+        }}
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none"
       />
+      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+        <button
+          type="button"
+          onClick={() => {
+            const next = clamp(Number((value - step).toFixed(2)), min, max)
+            onChange(next)
+            setDraft(String(formatNumericValue(next, step)))
+          }}
+          className="rounded-full border border-slate-200 px-2.5 py-1 font-semibold text-slate-500 transition-all hover:border-slate-300 hover:text-slate-900"
+        >
+          -
+        </button>
+        <span>{min} to {max}</span>
+        <button
+          type="button"
+          onClick={() => {
+            const next = clamp(Number((value + step).toFixed(2)), min, max)
+            onChange(next)
+            setDraft(String(formatNumericValue(next, step)))
+          }}
+          className="rounded-full border border-slate-200 px-2.5 py-1 font-semibold text-slate-500 transition-all hover:border-slate-300 hover:text-slate-900"
+        >
+          +
+        </button>
+      </div>
     </Field>
   )
 }
@@ -834,15 +963,74 @@ function PercentField({
   value: number
   onChange: (value: number) => void
 }) {
+  const [draft, setDraft] = useState((value * 100).toFixed(1))
+
+  useEffect(() => {
+    setDraft((value * 100).toFixed(1))
+  }, [value])
+
   return (
     <Field label={label}>
-      <input
-        type="number"
-        value={(value * 100).toFixed(1)}
-        step={0.1}
-        onChange={e => onChange(clamp(Number(e.target.value) / 100, 0, 1))}
-        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none"
-      />
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={0.5}
+            value={Number((value * 100).toFixed(1))}
+            onChange={e => onChange(clamp(Number(e.target.value) / 100, 0, 1))}
+            className="min-w-0 flex-1 max-w-full"
+          />
+          <input
+            type="text"
+            inputMode="decimal"
+            value={draft}
+            onFocus={e => e.currentTarget.select()}
+            onChange={e => {
+              const next = e.target.value
+              setDraft(next)
+              if (next.trim() === '') {
+                return
+              }
+              const parsed = Number(next)
+              if (Number.isFinite(parsed)) onChange(clamp(parsed / 100, 0, 1))
+            }}
+            onBlur={() => {
+              const parsed = Number(draft)
+              const safe = Number.isFinite(parsed) ? clamp(parsed / 100, 0, 1) : value
+              onChange(safe)
+              setDraft((safe * 100).toFixed(1))
+            }}
+            className="w-14 text-right text-sm font-semibold text-slate-700 outline-none"
+          />
+          <span className="text-sm font-semibold text-slate-500">%</span>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+        <button
+          type="button"
+          onClick={() => {
+            const next = clamp(Number((value - 0.01).toFixed(3)), 0, 1)
+            onChange(next)
+            setDraft((next * 100).toFixed(1))
+          }}
+          className="rounded-full border border-slate-200 px-2.5 py-1 font-semibold text-slate-500 transition-all hover:border-slate-300 hover:text-slate-900"
+        >
+          - 1%
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const next = clamp(Number((value + 0.01).toFixed(3)), 0, 1)
+            onChange(next)
+            setDraft((next * 100).toFixed(1))
+          }}
+          className="rounded-full border border-slate-200 px-2.5 py-1 font-semibold text-slate-500 transition-all hover:border-slate-300 hover:text-slate-900"
+        >
+          + 1%
+        </button>
+      </div>
     </Field>
   )
 }
@@ -854,6 +1042,11 @@ function MetricPreview({ label, value }: { label: string; value: string }) {
       <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
     </div>
   )
+}
+
+function formatNumericValue(value: number, step: number) {
+  if (step >= 1) return value.toFixed(0)
+  return value.toFixed(1)
 }
 
 function MetricChip({ label, value }: { label: string; value: string }) {
