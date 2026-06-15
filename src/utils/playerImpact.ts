@@ -134,9 +134,6 @@ export function buildPlayerImpactIndex(players: LeaguePlayer[]): PlayerImpactRes
     const astTov = leagueAstTov + (item.astTov - leagueAstTov) * item.confidence
     const plusMinus = leaguePlusMinus + (item.player.plus_minus - leaguePlusMinus) * item.confidence
 
-    // Inspired by Win Shares / ORtg / BPM style thinking:
-    // efficient scoring on meaningful load, creation without turnovers,
-    // and two-way box-score impact all matter.
     const offenseValue =
       ptsPer36 * (0.62 + ts * 0.55) +
       astPer36 * 1.45 +
