@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import type { WnbaDashboardData, SeasonData, LeaguePlayer } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
@@ -18,6 +19,10 @@ import rawData from '../data/wnba_data.json'
 const data = rawData as unknown as WnbaDashboardData
 const availableSeasons = Object.keys(data.seasons).filter(s => data.seasons[s] !== null).sort()
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
 export default function Dashboard() {
   const [season, setSeason] = useState(data.team.current_season)
   const [seasonType, setSeasonType] = useState<'regular_season' | 'playoffs'>('regular_season')
@@ -25,7 +30,7 @@ export default function Dashboard() {
   const [compareId, setCompareId] = useState<number | null>(null)
   const [showCompare, setShowCompare] = useState(false)
   const [section, setSection] = useState<'players' | 'teams'>('players')
-  const [playerTab, setPlayerTab] = useState<'overview' | 'compare' | 'rankings'>('overview')
+  const [playerTab, setPlayerTab] = useState<'overview' | 'compare' | 'rankings' | 'builder'>('overview')
 
   const seasonData = data.seasons[season] as SeasonData | null
   const block = seasonData ? seasonData[seasonType] : null
@@ -73,6 +78,7 @@ export default function Dashboard() {
   const isPlayersOverview = section === 'players' && playerTab === 'overview'
   const isPlayersCompare = section === 'players' && playerTab === 'compare'
   const isPlayersRankings = section === 'players' && playerTab === 'rankings'
+  const isPlayersBuilder = section === 'players' && playerTab === 'builder'
   const showSeasonTypeToggle = section === 'players' || section === 'teams'
 
   useEffect(() => {
@@ -137,7 +143,9 @@ export default function Dashboard() {
                     ? `${season} player profile`
                     : isPlayersCompare
                       ? `${season} player comparison`
-                      : `${season} player rankings`}
+                      : isPlayersRankings
+                        ? `${season} player rankings`
+                        : `${season} custom player builder`}
               </p>
             </div>
 
@@ -211,6 +219,11 @@ export default function Dashboard() {
                   className="rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'rankings' ? '#1e293b' : 'transparent', color: playerTab === 'rankings' ? '#fff' : '#64748b', fontWeight: playerTab === 'rankings' ? 600 : 500 }}
                 >Rankings</button>
+                <button
+                  onClick={() => setPlayerTab('builder')}
+                  className="rounded-full px-3 py-1 transition-all"
+                  style={{ background: playerTab === 'builder' ? '#1e293b' : 'transparent', color: playerTab === 'builder' ? '#fff' : '#64748b', fontWeight: playerTab === 'builder' ? 600 : 500 }}
+                >Builder</button>
                 </nav>
 
                 {isPlayersOverview && (
@@ -243,6 +256,12 @@ export default function Dashboard() {
                     League-wide leaderboard for the selected season.
                   </div>
                 )}
+
+                {isPlayersBuilder && (
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500">
+                    Build a custom WNBA player profile and estimate their impact score.
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -256,6 +275,8 @@ export default function Dashboard() {
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
         ) : playerTab === 'rankings' ? (
           <RankingsView allPlayers={allPlayers} season={season} impactIndex={impactIndex} />
+        ) : playerTab === 'builder' ? (
+          <BuildPlayerView allPlayers={allPlayers} season={season} />
         ) : !player || !leagueAvg ? (
           <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
         ) : (
@@ -493,6 +514,46 @@ function RankingsView({
               </div>
 
               <p className="text-xs text-slate-400">{activeMetric.description}</p>
+
+              {metric === 'impact' && (
+                <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  <summary className="cursor-pointer list-none font-semibold text-slate-700">
+                    How the Player Impact Index works
+                  </summary>
+                  <div className="mt-3 space-y-2 text-[13px] leading-5">
+                    <p>
+                      The score is built from season box-score production relative to the rest of the league that year.
+                      It is a weighted formula, so points, assists, rebounds, steals, blocks, efficiency, turnovers, and plus-minus do not count equally.
+                    </p>
+                    <p>
+                      Offensive formula:
+                      <br />
+                      <span className="font-mono text-[12px] text-slate-700">
+                        PTS/36 × (0.62 + TS% × 0.55) + AST/36 × 1.45 + Usage/36 × 0.18 + (TS% edge × 34) + (eFG% edge × 22) + (AST/TO edge × 2.6)
+                      </span>
+                    </p>
+                    <p>
+                      Defensive formula:
+                      <br />
+                      <span className="font-mono text-[12px] text-slate-700">
+                        STL/36 × 2.6 + BLK/36 × 2.3 + DREB/36 × 0.55 + OREB/36 × 0.35 + REB/36 × 0.15 + Plus/Minus × 0.95
+                      </span>
+                    </p>
+                    <p>
+                      Final blend:
+                      <br />
+                      <span className="font-mono text-[12px] text-slate-700">
+                        Total = Offense × 0.64 + Defense × 0.36
+                      </span>
+                      <br />
+                      That total is converted into a season-relative score centered around <span className="font-semibold text-slate-700">50</span>.
+                    </p>
+                    <p>
+                      Players with smaller minute samples are pulled closer to average so short stretches do not overstate their impact.
+                    </p>
+                  </div>
+                </details>
+              )}
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-400">No ranking data available for this season.</p>
@@ -536,6 +597,261 @@ function RankingsView({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+type BuilderFormState = {
+  name: string
+  position: 'Guard' | 'Wing' | 'Big'
+  gp: number
+  min: number
+  pts: number
+  reb: number
+  ast: number
+  stl: number
+  blk: number
+  tov: number
+  fga: number
+  fg_pct: number
+  fg3a: number
+  fg3_pct: number
+  fta: number
+  ft_pct: number
+  oreb: number
+  dreb: number
+  plus_minus: number
+}
+
+const defaultBuilderState: BuilderFormState = {
+  name: 'Custom Prospect',
+  position: 'Wing',
+  gp: 30,
+  min: 30,
+  pts: 15,
+  reb: 6,
+  ast: 4,
+  stl: 1.2,
+  blk: 0.7,
+  tov: 2.3,
+  fga: 12.5,
+  fg_pct: 0.46,
+  fg3a: 4.5,
+  fg3_pct: 0.35,
+  fta: 3.8,
+  ft_pct: 0.82,
+  oreb: 1.2,
+  dreb: 4.8,
+  plus_minus: 1.8,
+}
+
+function BuildPlayerView({ allPlayers, season }: { allPlayers: LeaguePlayer[]; season: string }) {
+  const [form, setForm] = useState<BuilderFormState>(defaultBuilderState)
+
+  const updateField = <K extends keyof BuilderFormState>(key: K, value: BuilderFormState[K]) => {
+    setForm(current => ({ ...current, [key]: value }))
+  }
+
+  const customPlayer = useMemo<LeaguePlayer>(() => {
+    const fgm = form.fga * form.fg_pct
+    const fg3m = form.fg3a * form.fg3_pct
+    const ftm = form.fta * form.ft_pct
+
+    return {
+      player_id: -999999,
+      name: form.name.trim() || 'Custom Prospect',
+      team: 'CUSTOM',
+      gp: Math.max(1, form.gp),
+      min: Math.max(1, form.min),
+      pts: Math.max(0, form.pts),
+      reb: Math.max(0, form.reb),
+      ast: Math.max(0, form.ast),
+      stl: Math.max(0, form.stl),
+      blk: Math.max(0, form.blk),
+      tov: Math.max(0, form.tov),
+      fgm,
+      fga: Math.max(0.1, form.fga),
+      fg_pct: clamp(form.fg_pct, 0, 1),
+      fg3m,
+      fg3a: Math.max(0, form.fg3a),
+      fg3_pct: clamp(form.fg3_pct, 0, 1),
+      ftm,
+      fta: Math.max(0, form.fta),
+      ft_pct: clamp(form.ft_pct, 0, 1),
+      oreb: Math.max(0, form.oreb),
+      dreb: Math.max(0, form.dreb),
+      pf: 2.5,
+      plus_minus: form.plus_minus,
+    }
+  }, [form])
+
+  const customImpact = useMemo(() => {
+    const withCustom = [...allPlayers, customPlayer]
+    return buildPlayerImpactIndex(withCustom)
+  }, [allPlayers, customPlayer])
+
+  const customImpactEntry = customImpact.byPlayerId[customPlayer.player_id]
+  const ts =
+    customPlayer.fga + 0.44 * customPlayer.fta > 0
+      ? customPlayer.pts / (2 * (customPlayer.fga + 0.44 * customPlayer.fta))
+      : 0
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>Build Your Own Player</h2>
+        <p className="text-sm text-slate-400 mt-1">{season} season context &middot; estimate a custom player&apos;s impact before comparing them to real WNBA players</p>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.95fr] gap-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Player name">
+              <input
+                value={form.name}
+                onChange={e => updateField('name', e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none"
+              />
+            </Field>
+            <Field label="Position">
+              <select
+                value={form.position}
+                onChange={e => updateField('position', e.target.value as BuilderFormState['position'])}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none bg-white"
+              >
+                <option value="Guard">Guard</option>
+                <option value="Wing">Wing</option>
+                <option value="Big">Big</option>
+              </select>
+            </Field>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <NumberField label="Games" value={form.gp} step={1} onChange={value => updateField('gp', value)} />
+            <NumberField label="Minutes" value={form.min} step={0.1} onChange={value => updateField('min', value)} />
+            <NumberField label="Points" value={form.pts} step={0.1} onChange={value => updateField('pts', value)} />
+            <NumberField label="Rebounds" value={form.reb} step={0.1} onChange={value => updateField('reb', value)} />
+            <NumberField label="Assists" value={form.ast} step={0.1} onChange={value => updateField('ast', value)} />
+            <NumberField label="Steals" value={form.stl} step={0.1} onChange={value => updateField('stl', value)} />
+            <NumberField label="Blocks" value={form.blk} step={0.1} onChange={value => updateField('blk', value)} />
+            <NumberField label="Turnovers" value={form.tov} step={0.1} onChange={value => updateField('tov', value)} />
+            <NumberField label="FGA" value={form.fga} step={0.1} onChange={value => updateField('fga', value)} />
+            <PercentField label="FG%" value={form.fg_pct} onChange={value => updateField('fg_pct', value)} />
+            <NumberField label="3PA" value={form.fg3a} step={0.1} onChange={value => updateField('fg3a', value)} />
+            <PercentField label="3P%" value={form.fg3_pct} onChange={value => updateField('fg3_pct', value)} />
+            <NumberField label="FTA" value={form.fta} step={0.1} onChange={value => updateField('fta', value)} />
+            <PercentField label="FT%" value={form.ft_pct} onChange={value => updateField('ft_pct', value)} />
+            <NumberField label="OREB" value={form.oreb} step={0.1} onChange={value => updateField('oreb', value)} />
+            <NumberField label="DREB" value={form.dreb} step={0.1} onChange={value => updateField('dreb', value)} />
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <NumberField label="Plus/Minus" value={form.plus_minus} step={0.1} onChange={value => updateField('plus_minus', value)} />
+            <MetricPreview label="Estimated TS%" value={`${(ts * 100).toFixed(1)}%`} />
+            <MetricPreview label="Estimated FGM" value={customPlayer.fgm.toFixed(1)} />
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 space-y-4">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">Custom Impact Snapshot</div>
+            <h3 className="mt-2 text-3xl tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>{customPlayer.name}</h3>
+            <p className="text-sm text-slate-400 mt-1">{form.position} &middot; {customPlayer.min.toFixed(1)} MPG &middot; {customPlayer.gp} GP</p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">Player Impact Index</div>
+            <div className="mt-2 flex items-end gap-3">
+              <div className="text-5xl font-light tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                {customImpactEntry ? customImpactEntry.score.toFixed(1) : '--'}
+              </div>
+              <div className="pb-2 text-sm text-slate-500">Average {customImpact.averageScore.toFixed(0)}</div>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">
+              {customImpactEntry?.summary ?? 'Impact estimate updates instantly from your custom statline.'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <MetricPreview label="PTS" value={customPlayer.pts.toFixed(1)} />
+            <MetricPreview label="REB" value={customPlayer.reb.toFixed(1)} />
+            <MetricPreview label="AST" value={customPlayer.ast.toFixed(1)} />
+            <MetricPreview label="3P%" value={`${(customPlayer.fg3_pct * 100).toFixed(1)}%`} />
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+            <div className="font-semibold text-slate-700">Next useful additions</div>
+            <div className="mt-2 leading-6">
+              Similarity search can compare this custom player to the closest real WNBA player profiles.
+              Team fit can compare this custom player against each roster’s needs and current style.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <div className="mb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</div>
+      {children}
+    </label>
+  )
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  step,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+  step: number
+}) {
+  return (
+    <Field label={label}>
+      <input
+        type="number"
+        value={Number.isFinite(value) ? value : 0}
+        step={step}
+        onChange={e => onChange(Number(e.target.value))}
+        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none"
+      />
+    </Field>
+  )
+}
+
+function PercentField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <Field label={label}>
+      <input
+        type="number"
+        value={(value * 100).toFixed(1)}
+        step={0.1}
+        onChange={e => onChange(clamp(Number(e.target.value) / 100, 0, 1))}
+        className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none"
+      />
+    </Field>
+  )
+}
+
+function MetricPreview({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="text-lg font-semibold text-slate-900">{value}</div>
+      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
     </div>
   )
 }

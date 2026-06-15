@@ -31,6 +31,43 @@ export default function PlayerCard({ player, teamColor, impactIndex }: Props) {
                 </div>
               </div>
               <div className="mt-3 text-[12px] leading-5 text-slate-600">{impactIndex.summary}</div>
+              <details className="mt-3 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-[12px] text-slate-600">
+                <summary className="cursor-pointer list-none font-semibold text-slate-700">
+                  How this is calculated
+                </summary>
+                <div className="mt-2 space-y-2 leading-5">
+                  <p>
+                    This is a weighted season-impact formula, not a simple box-score sum. Points, assists, rebounds, steals, blocks,
+                    efficiency, turnovers, and plus-minus all feed into the score with different weights.
+                  </p>
+                  <p>
+                    Offensive value:
+                    <br />
+                    <span className="font-mono text-[11px] text-slate-700">
+                      PTS/36 × (0.62 + TS% × 0.55) + AST/36 × 1.45 + Usage/36 × 0.18 + (TS% edge × 34) + (eFG% edge × 22) + (AST/TO edge × 2.6)
+                    </span>
+                  </p>
+                  <p>
+                    Defensive value:
+                    <br />
+                    <span className="font-mono text-[11px] text-slate-700">
+                      STL/36 × 2.6 + BLK/36 × 2.3 + DREB/36 × 0.55 + OREB/36 × 0.35 + REB/36 × 0.15 + Plus/Minus × 0.95
+                    </span>
+                  </p>
+                  <p>
+                    Final blend:
+                    <br />
+                    <span className="font-mono text-[11px] text-slate-700">
+                      Total = Offense × 0.64 + Defense × 0.36
+                    </span>
+                    <br />
+                    Then the result is converted to a season-relative score centered around <span className="font-semibold text-slate-700">50</span>.
+                  </p>
+                  <p>
+                    Small-minute players are pulled closer to average, so short samples do not spike too high.
+                  </p>
+                </div>
+              </details>
             </div>
 
             <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
