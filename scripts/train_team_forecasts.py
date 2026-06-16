@@ -21,6 +21,13 @@ DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "wnba_data.json"
 OUTPUT_FILE = Path(__file__).parent.parent / "src" / "data" / "team_predictions.json"
 
 
+def write_json_atomic(path, payload, *, indent=None):
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    with open(temp_path, "w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=indent)
+    temp_path.replace(path)
+
+
 @dataclass
 class TeamGame:
     season: str
@@ -432,8 +439,7 @@ def main() -> None:
     model.fit(samples, labels)
 
     predictions = build_predictions(data, model, season_games)
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
-        json.dump(predictions, file, indent=2)
+    write_json_atomic(OUTPUT_FILE, predictions, indent=2)
 
     print(f"Random-forest forecasts saved to {OUTPUT_FILE}")
     print(f"Trained on {len(samples)} historical team matchups.")
