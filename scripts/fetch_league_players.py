@@ -14,6 +14,13 @@ WNBA_LEAGUE_ID = "10"
 SEASONS = ["2024", "2025", "2026"]
 
 
+def write_json_atomic(path, payload, *, indent=None):
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=indent)
+    temp_path.replace(path)
+
+
 def fetch_all_players(season, season_type="Regular Season"):
     print(f"  Fetching all WNBA players ({season} - {season_type})...")
     stats = leaguedashplayerstats.LeagueDashPlayerStats(
@@ -75,8 +82,7 @@ def main():
         data["seasons"][season]["playoffs"]["all_players"] = playoff
         print(f"    {season} Playoffs: {len(playoff)} players")
 
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    write_json_atomic(DATA_FILE, data, indent=2)
 
     print(f"\nDone. File size: {DATA_FILE.stat().st_size / 1024:.1f} KB")
 

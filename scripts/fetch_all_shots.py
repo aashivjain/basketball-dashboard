@@ -16,6 +16,13 @@ DATA_FILE = Path(__file__).parent.parent / "src" / "data" / "wnba_data.json"
 WNBA_LEAGUE_ID = "10"
 
 
+def write_json_atomic(path, payload, *, indent=None):
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=indent)
+    temp_path.replace(path)
+
+
 def fetch_shot_chart(player_id, player_name, season, team_id=0):
     for attempt in range(3):
         try:
@@ -88,13 +95,11 @@ def fetch_season(data, season):
 
         if fetched > 0 and fetched % 20 == 0:
             season_data["regular_season"]["shot_charts"] = all_shot_charts
-            with open(DATA_FILE, "w") as f:
-                json.dump(data, f)
+            write_json_atomic(DATA_FILE, data)
             print(f"    [saved progress: {fetched} fetched]")
 
     season_data["regular_season"]["shot_charts"] = all_shot_charts
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
+    write_json_atomic(DATA_FILE, data)
 
     print(f"  Done {season}: {fetched} new, {errors} errors.")
 

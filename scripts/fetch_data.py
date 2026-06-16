@@ -27,6 +27,13 @@ SEASONS = ["2024", "2025", "2026"]
 CURRENT_SEASON = "2026"
 
 
+def write_json_atomic(path, payload, *, indent=None):
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=indent)
+    temp_path.replace(path)
+
+
 def fetch_roster(season):
     """Fetch Indiana Fever roster."""
     print(f"  Fetching roster for {season}...")
@@ -292,8 +299,7 @@ def main():
             all_data["seasons"][season] = None
 
     output_file = OUTPUT_DIR / "wnba_data.json"
-    with open(output_file, "w") as f:
-        json.dump(all_data, f, indent=2)
+    write_json_atomic(output_file, all_data, indent=2)
 
     print(f"\nDone. Saved to {output_file}")
     print(f"File size: {output_file.stat().st_size / 1024:.1f} KB")

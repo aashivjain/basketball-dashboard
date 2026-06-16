@@ -36,6 +36,13 @@ SHOT_REQUEST_TIMEOUT = 60
 SHOT_CHART_WORKERS = 3
 
 
+def write_json_atomic(path, payload, *, indent=None):
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=indent)
+    temp_path.replace(path)
+
+
 def fetch_all_players(season, season_type="Regular Season"):
     stats = leaguedashplayerstats.LeagueDashPlayerStats(
         season=season,
@@ -252,8 +259,7 @@ def main():
 
                 if completed % 10 == 0:
                     reg["shot_charts"] = shot_charts
-                    with open(DATA_FILE, "w") as f:
-                        json.dump(data, f)
+                    write_json_atomic(DATA_FILE, data)
                     print(f"      Saved shot chart progress at {completed}/{len(stale_pids)} players...")
 
                 if completed % 25 == 0:
@@ -266,8 +272,7 @@ def main():
 
     # Save + timestamp
     data["last_updated"] = datetime.now().isoformat()
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
+    write_json_atomic(DATA_FILE, data)
 
     print("\n[4/4] Recomputing team forecast models...")
     result = subprocess.run([PYTHON, str(Path(__file__).parent / "train_team_forecasts.py")], cwd=Path(__file__).parent.parent)
