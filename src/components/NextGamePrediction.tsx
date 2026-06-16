@@ -1,23 +1,27 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import type { SeasonBlock, TeamPredictionsData } from '../types'
+import type { SeasonBlock } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import { buildTeamProfiles, predictMatchup } from '../utils/teamPrediction'
-import rawPredictions from '../data/team_predictions.json'
+import { loadTeamPredictions } from '../utils/dataValidation'
 
 interface Props {
   block: SeasonBlock | null
 }
 
-const teamPredictions = rawPredictions as TeamPredictionsData
-
 export default function NextGamePrediction({ block }: Props) {
   const teamProfiles = useMemo(() => (block ? buildTeamProfiles(block) : []), [block])
+  const predictionState = useMemo(
+    () => loadTeamPredictions(teamProfiles.map(team => team.team), block ? guessSeasonFromBlock(block) : '2026'),
+    [block, teamProfiles]
+  )
   const [selectedTeam, setSelectedTeam] = useState(teamProfiles[0]?.team ?? 'IND')
   const [venue, setVenue] = useState<'home' | 'away'>('home')
   const [showRosterSummary, setShowRosterSummary] = useState(false)
   const [showLineupLab, setShowLineupLab] = useState(false)
   const [showSynergyBoard, setShowSynergyBoard] = useState(false)
   const [showMatchups, setShowMatchups] = useState(false)
+
+  const teamPredictions = predictionState.data
 
   useEffect(() => {
     if (!teamProfiles.find(team => team.team === selectedTeam)) {
@@ -57,7 +61,7 @@ export default function NextGamePrediction({ block }: Props) {
       .filter(team => team.team !== focusTeam.team)
       .map(opponent => {
         const weightedPrediction = predictMatchup(focusTeam, opponent, venue)
-        const rfPrediction = teamPredictions.forecasts[selectedTeam]?.[venue]?.[opponent.team] ?? null
+        const rfPrediction = teamPredictions?.forecasts[selectedTeam]?.[venue]?.[opponent.team] ?? null
         const weightedPct = weightedPrediction.teamAWinPct
         const rfPct = rfPrediction?.team_win_pct ?? weightedPct
 
@@ -86,6 +90,16 @@ export default function NextGamePrediction({ block }: Props) {
           <p className="text-sm text-slate-500 mt-2 max-w-3xl">
             Pick a team, then open the sections you want to inspect.
           </p>
+          {predictionState.issues.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Forecast safeguards active: {predictionState.issues.join(' ')} Falling back to live weighted matchup estimates where needed.
+            </div>
+          )}
+          {teamPredictions && (
+            <div className="mt-2 text-xs text-slate-400">
+              Forecast file: {teamPredictions.season} season, generated {new Date(teamPredictions.generated_at).toLocaleString()}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 flex-wrap items-center">
@@ -508,6 +522,12 @@ function compactReason(text: string) {
     .replace('Field-goal efficiency', 'FG')
     .replace('3-point shooting', '3PT')
     .replace('Free-throw shooting', 'FT')
+}
+
+function guessSeasonFromBlock(block: SeasonBlock) {
+  const sampleDate = Object.values(block.game_logs)[0]?.[0]?.game_date ?? ''
+  const match = sampleDate.match(/\b(20\d{2})\b/)
+  return match?.[1] ?? '2026'
 }
 
 function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>, block: SeasonBlock) {

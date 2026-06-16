@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import type { WnbaDashboardData, SeasonData, LeaguePlayer } from '../types'
+import type { SeasonData, LeaguePlayer } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
 import ShotChart from './ShotChart'
@@ -13,17 +13,14 @@ import GrowthChart from './GrowthChart'
 import AdvancedStats from './AdvancedStats'
 import NextGamePrediction from './NextGamePrediction'
 import { buildPlayerImpactIndex } from '../utils/playerImpact'
-
-import rawData from '../data/wnba_data.json'
-
-const data = rawData as unknown as WnbaDashboardData
-const availableSeasons = Object.keys(data.seasons).filter(s => data.seasons[s] !== null).sort()
+import { loadDashboardData } from '../utils/dataValidation'
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
 export default function Dashboard() {
+  const { data, issues: dataIssues } = loadDashboardData()
   const [season, setSeason] = useState(data.team.current_season)
   const [seasonType, setSeasonType] = useState<'regular_season' | 'playoffs'>('regular_season')
   const [playerId, setPlayerId] = useState<number | null>(null)
@@ -32,6 +29,10 @@ export default function Dashboard() {
   const [section, setSection] = useState<'players' | 'teams'>('players')
   const [playerTab, setPlayerTab] = useState<'overview' | 'compare' | 'rankings' | 'builder'>('overview')
 
+  const availableSeasons = useMemo(
+    () => Object.keys(data.seasons).filter(s => data.seasons[s] !== null).sort(),
+    []
+  )
   const seasonData = data.seasons[season] as SeasonData | null
   const block = seasonData ? seasonData[seasonType] : null
   const allPlayers: LeaguePlayer[] = useMemo(() => block?.all_players ?? [], [block])
@@ -269,6 +270,11 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {dataIssues.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Data validation warnings: {dataIssues.join(' ')}
+          </div>
+        )}
         {section === 'teams' ? (
           <NextGamePrediction block={block} />
         ) : playerTab === 'compare' ? (
