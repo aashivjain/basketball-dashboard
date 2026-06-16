@@ -1,84 +1,172 @@
 # WNBA Analytics Dashboard
 
-Full-league analytics dashboard covering all WNBA teams and players (2024–2026). Real data from the official WNBA stats API. Shot charts, radar comparisons, game logs, and season-over-season growth tracking.
+Full-league analytics dashboard covering all WNBA teams and players (2024-2026). It uses real data from the official WNBA stats API and includes player profiles, shot charts, game logs, growth trends, and team matchup forecasts.
 
-## Quick Start
+## Data Privacy Notes
 
-### 1. Clone & Install
+- Generated data files are gitignored, so they are not pushed to Git by default.
+- That keeps the raw generated files private in the repository unless you force-add them.
+- If you publish this as a static frontend, any data required by the browser is still visible to site visitors.
+- If you need the data to be private from end users, you need a backend API. A static Vite app cannot make client-delivered data secret.
 
-```bash
-git clone https://github.com/aashivjain/basketball-dashboard.git
-cd basketball-dashboard
-npm install
-```
+## Requirements
 
-### 2. Fetch Data
+- Node.js 20+
+- Python 3.10+
 
-Requires Python 3.10+:
+Python packages used by the data pipeline:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
+- `nba_api`
+- `requests`
+- `scikit-learn`
+- `numpy`
 
-pip install nba_api requests
-python scripts/fetch_all.py   # ~20 min, pulls from stats.wnba.com
-```
+## Install
 
-### 3. Run
+### Windows
 
-```bash
-npm run dev
-```
-
-Open http://localhost:5173
-
-## Run Checklist
-
-### Fresh Clone
-
-```bash
+```powershell
 git clone https://github.com/aashivjain/basketball-dashboard.git
 cd basketball-dashboard
 npm install
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 pip install nba_api requests scikit-learn numpy
-python scripts/fetch_all.py
+```
+
+### macOS
+
+```bash
+git clone https://github.com/aashivjain/basketball-dashboard.git
+cd basketball-dashboard
+npm install
+python3 -m venv .venv
+source .venv/bin/activate
+pip install nba_api requests scikit-learn numpy
+```
+
+## Generated Data Locations
+
+The scripts write generated files here:
+
+- `src/data/wnba_data.json`
+- `src/data/team_predictions.json`
+
+The React app reads from those same files.
+
+## Generate All Data
+
+This pulls roster data, league player data, game logs, shot charts, and forecast data.
+
+### Windows
+
+```powershell
+.venv\Scripts\python scripts\fetch_all.py
+```
+
+### macOS
+
+```bash
+.venv/bin/python scripts/fetch_all.py
+```
+
+## Run The App
+
+### Windows
+
+```powershell
 npm run dev
 ```
 
-### Already Set Up
+### macOS
 
 ```bash
-cd basketball-dashboard
 npm run dev
 ```
 
-### Refresh Daily Data + Recompute Predictions
+Open `http://localhost:5173`
 
-```bash
-cd basketball-dashboard
+## Refresh Current Season Data
+
+### Full refresh
+
+Updates current-season player stats, game logs, shot charts, and team forecasts.
+
+### Windows
+
+```powershell
 npm run refresh
-npm run dev
 ```
 
-### Retrain Only The Random-Forest Forecasts
+### macOS
 
 ```bash
-cd basketball-dashboard
+.venv/bin/python scripts/refresh_current_season.py
+```
+
+### Fast refresh
+
+Skips shot chart refetching but still updates stats, game logs, and forecasts.
+
+### Windows
+
+```powershell
+npm run refresh:fast
+```
+
+### macOS
+
+```bash
+.venv/bin/python scripts/refresh_current_season.py --fast
+```
+
+## Retrain Forecasts Only
+
+### Windows
+
+```powershell
 npm run train:forecasts
 ```
 
+### macOS
+
+```bash
+.venv/bin/python scripts/train_team_forecasts.py
+```
+
+## Smoke Check
+
+Validate that the generated JSON files exist, parse correctly, and stay season-aligned:
+
+```bash
+npm run smoke:data
+```
+
+Recommended quick check before shipping:
+
+```bash
+npm run smoke
+npm run build
+```
+
+## Script I/O Map
+
+- `scripts/fetch_data.py` writes `src/data/wnba_data.json`
+- `scripts/fetch_game_logs.py` updates `src/data/wnba_data.json`
+- `scripts/fetch_all_shots.py` updates `src/data/wnba_data.json`
+- `scripts/fetch_league_players.py` updates `src/data/wnba_data.json`
+- `scripts/refresh_current_season.py` updates `src/data/wnba_data.json`
+- `scripts/train_team_forecasts.py` writes `src/data/team_predictions.json`
+
 ## Features
 
-- **All WNBA players** — Browse by team, compare any two players league-wide
-- **Team-colored UI** — Background and accents shift to match the selected player's team
-- **Shot chart** — Wooden court with green (made) / red (missed) shot plotting
-- **Radar chart** — Player vs league average with optional comparison overlay
-- **Game log & trends** — Full season table + line charts
-- **Season comparison** — Track player growth across 2024–2026
-- **Shooting zones** — Efficiency breakdown by court area
+- All WNBA players league-wide
+- Team-colored player profiles
+- Shot chart and zone breakdowns
+- Game log tables and performance trends
+- Season-over-season growth tracking
+- Player comparison
+- Team matchup forecasts
 
 ## Tech
 
@@ -89,15 +177,19 @@ npm run train:forecasts
 
 ## Project Structure
 
-```
+```text
 src/
 ├── components/   # Dashboard, PlayerCard, ShotChart, StatsRadar, etc.
-├── data/         # wnba_data.json (generated, gitignored)
+├── data/         # generated locally, gitignored
 ├── types/        # TypeScript interfaces
-└── utils/        # Team colors, stat helpers
+└── utils/        # Team colors, validation, stat helpers
 scripts/
-├── fetch_all.py            # Master script (runs everything)
-├── fetch_data.py           # Fever-specific data
-├── fetch_league_players.py # League-wide stats
-└── fetch_all_shots.py      # Shot charts for all players
+├── fetch_all.py
+├── fetch_data.py
+├── fetch_game_logs.py
+├── fetch_all_shots.py
+├── fetch_league_players.py
+├── refresh_current_season.py
+├── train_team_forecasts.py
+└── smoke_validate_data.mjs
 ```
