@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import type { SeasonData, LeaguePlayer } from '../types'
-import { getTeamColors } from '../utils/teamColors'
+import { getReadableTeamAccent, getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
 import ShotChart from './ShotChart'
 import StatsRadar from './StatsRadar'
@@ -77,11 +77,34 @@ export default function Dashboard() {
   }, [playerId])
 
   const teamColor = player ? getTeamColors(player.team) : null
+  const playerAccent = player ? getReadableTeamAccent(player.team) : '#334155'
   const isPlayersOverview = section === 'players' && playerTab === 'overview'
   const isPlayersCompare = section === 'players' && playerTab === 'compare'
   const isPlayersRankings = section === 'players' && playerTab === 'rankings'
   const isPlayersBuilder = section === 'players' && playerTab === 'builder'
-  const showSeasonTypeToggle = section === 'players' || section === 'teams' || section === 'news'
+  const showSeasonTypeToggle = section === 'players' || section === 'teams'
+  const sectionTitle = section === 'teams'
+    ? 'Team Command Center'
+    : section === 'news'
+      ? 'WNBA News Desk'
+      : isPlayersCompare
+        ? 'Player Compare'
+        : isPlayersRankings
+          ? 'Player Rankings'
+          : isPlayersBuilder
+            ? 'Player Builder'
+            : 'Player Studio'
+  const sectionSubtitle = section === 'teams'
+    ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoffs'} team outlooks, matchup edges, and lineup tools.`
+    : section === 'news'
+      ? `Fresh headlines, signals, and league movement from around the WNBA.`
+      : isPlayersCompare
+        ? `${season} side-by-side player comparison across the league.`
+        : isPlayersRankings
+          ? `${season} leaderboards with impact and production context.`
+          : isPlayersBuilder
+            ? `${season} custom player modeling against the live WNBA baseline.`
+            : `${season} player profiles with shot maps, trends, and advanced context.`
 
   useEffect(() => {
     if (!availableSeasons.includes(season) && availableSeasons.length > 0) {
@@ -130,107 +153,93 @@ export default function Dashboard() {
   }, [player, allPlayers, rosterById])
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: section === 'players' && teamColor ? teamColor.bg : '#fafafa' }}>
-      <header className="sticky top-0 z-40 backdrop-blur-md border-b border-slate-200/60" style={{ background: 'rgba(255,255,255,0.95)' }}>
-        <div className="max-w-6xl mx-auto px-6 py-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="min-w-0 pr-2">
-              <h1 className="text-lg tracking-tight font-semibold" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>
-                WNBA Analytics
+    <div className="ui-shell min-h-screen transition-colors duration-500" style={{ background: isPlayersOverview && player && teamColor ? `linear-gradient(180deg, ${teamColor.bg} 0%, #edf2f7 28%)` : undefined }}>
+      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-[rgba(248,250,252,0.90)] backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 py-3 md:px-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="min-w-0 max-w-2xl">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">WNBA Analytics</div>
+              <h1 className="mt-1 text-[25px] leading-none tracking-tight text-slate-950">
+                {sectionTitle}
               </h1>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                {section === 'teams'
-                  ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoffs'} team dashboard`
-                  : section === 'news'
-                    ? `${season} ${seasonType === 'regular_season' ? 'Regular Season' : 'Playoffs'} League News`
-                  : isPlayersOverview
-                    ? `${season} player profile`
-                    : isPlayersCompare
-                      ? `${season} player comparison`
-                      : isPlayersRankings
-                        ? `${season} player rankings`
-                        : `${season} custom player builder`}
+              <p className="mt-1 max-w-2xl text-[12px] leading-5 text-slate-500">
+                {sectionSubtitle}
               </p>
             </div>
 
-            <select
-              value={season}
-              onChange={e => setSeason(e.target.value)}
-              aria-label="Season"
-              className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all appearance-none"
-              style={{
-                border: '1.5px solid #cbd5e1',
-                background: 'white',
-                color: '#334155',
-                minWidth: '100px',
-                paddingRight: '2rem',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 12px center',
-              }}
-            >
-              {availableSeasons.map(yr => (
-                <option key={yr} value={yr}>{yr}</option>
-              ))}
-            </select>
-
-            {showSeasonTypeToggle && (
-              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-sm">
-                {(['regular_season', 'playoffs'] as const).map(st => (
-                  <button
-                    key={st}
-                    onClick={() => setSeasonType(st)}
-                    className="rounded-full px-3 py-1 transition-all"
-                    style={{
-                      background: seasonType === st ? '#e2e8f0' : 'transparent',
-                      color: seasonType === st ? '#0f172a' : '#94a3b8',
-                      fontWeight: seasonType === st ? 600 : 500,
-                      fontSize: '13px',
-                    }}
-                  >{st === 'regular_season' ? 'Regular' : 'Playoffs'}</button>
-                ))}
-              </div>
-            )}
-
-            <div className="ml-auto flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 p-1 text-sm shadow-sm">
               <button
                 onClick={() => setSection('players')}
-                className="rounded-full px-3 py-1 transition-all"
+                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'players' ? '#1e293b' : 'transparent', color: section === 'players' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Players</button>
               <button
                 onClick={() => setSection('teams')}
-                className="rounded-full px-3 py-1 transition-all"
+                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Teams</button>
               <button
                 onClick={() => setSection('news')}
-                className="rounded-full px-3 py-1 transition-all"
+                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'news' ? '#1e293b' : 'transparent', color: section === 'news' ? '#fff' : '#64748b', fontWeight: 600 }}
               >News</button>
             </div>
+          </div>
 
-            {section === 'players' && (
+          {(section === 'players' || section === 'teams') && (
+            <div className="mt-3 flex items-center gap-2.5 flex-wrap rounded-[20px] border border-slate-200/80 bg-white/88 px-3 py-2 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.35)]">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Context</div>
+              <select
+                value={season}
+                onChange={e => setSeason(e.target.value)}
+                aria-label="Season"
+                className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700"
+                style={{ minWidth: '110px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+              >
+                {availableSeasons.map(yr => (
+                  <option key={yr} value={yr}>{yr}</option>
+                ))}
+              </select>
+
+              {showSeasonTypeToggle && (
+                <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
+                  {(['regular_season', 'playoffs'] as const).map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setSeasonType(st)}
+                      className="ui-nav-button rounded-full px-3 py-1 transition-all"
+                      style={{
+                        background: seasonType === st ? '#1e293b' : 'transparent',
+                        color: seasonType === st ? '#fff' : '#64748b',
+                        fontWeight: seasonType === st ? 600 : 500,
+                        fontSize: '13px',
+                      }}
+                    >{st === 'regular_season' ? 'Regular' : 'Playoffs'}</button>
+                  ))}
+                </div>
+              )}
+
+              {section === 'players' && (
               <>
-                <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-sm">
+                <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
                 <button
                   onClick={() => setPlayerTab('overview')}
-                  className="rounded-full px-3 py-1 transition-all"
+                  className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'overview' ? '#1e293b' : 'transparent', color: playerTab === 'overview' ? '#fff' : '#64748b', fontWeight: playerTab === 'overview' ? 600 : 500 }}
                 >Overview</button>
                 <button
                   onClick={() => setPlayerTab('compare')}
-                  className="rounded-full px-3 py-1 transition-all"
+                  className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'compare' ? '#1e293b' : 'transparent', color: playerTab === 'compare' ? '#fff' : '#64748b', fontWeight: playerTab === 'compare' ? 600 : 500 }}
                 >Compare</button>
                 <button
                   onClick={() => setPlayerTab('rankings')}
-                  className="rounded-full px-3 py-1 transition-all"
+                  className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'rankings' ? '#1e293b' : 'transparent', color: playerTab === 'rankings' ? '#fff' : '#64748b', fontWeight: playerTab === 'rankings' ? 600 : 500 }}
                 >Rankings</button>
                 <button
                   onClick={() => setPlayerTab('builder')}
-                  className="rounded-full px-3 py-1 transition-all"
+                  className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'builder' ? '#1e293b' : 'transparent', color: playerTab === 'builder' ? '#fff' : '#64748b', fontWeight: playerTab === 'builder' ? 600 : 500 }}
                 >Builder</button>
                 </nav>
@@ -240,8 +249,8 @@ export default function Dashboard() {
                     value={playerId ?? ''}
                     onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
                     aria-label="Selected player"
-                    className="rounded-full px-4 py-1.5 text-sm cursor-pointer focus:outline-none transition-all appearance-none"
-                    style={{ border: '1.5px solid #cbd5e1', background: 'white', color: '#334155', minWidth: '220px', maxWidth: '320px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                    className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700"
+                    style={{ minWidth: '220px', maxWidth: '320px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                   >
                     <option value="" disabled>Choose player</option>
                     {playersByTeam.map(([team, players]) => (
@@ -255,38 +264,39 @@ export default function Dashboard() {
                 )}
 
                 {isPlayersCompare && (
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500">
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
                     Pick both players below to compare this season.
                   </div>
                 )}
 
                 {isPlayersRankings && (
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500">
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
                     League-wide leaderboard for the selected season.
                   </div>
                 )}
 
                 {isPlayersBuilder && (
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm text-slate-500">
+                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
                     Build a custom WNBA player profile and estimate their impact score.
                   </div>
                 )}
               </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8 md:px-6">
         {dataIssues.length > 0 && (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mb-6 rounded-[22px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
             Data validation warnings: {dataIssues.join(' ')}
           </div>
         )}
         {section === 'teams' ? (
           <NextGamePrediction block={block} />
         ) : section === 'news' ? (
-          <NewsHub block={block} news={data.news} season={season} seasonType={seasonType} />
+          <NewsHub block={block} news={data.news} />
         ) : playerTab === 'compare' ? (
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
         ) : playerTab === 'rankings' ? (
@@ -297,11 +307,18 @@ export default function Dashboard() {
           <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
         ) : (
           <div className="space-y-8">
-            <div className="flex items-end gap-6 flex-wrap">
-              <div>
-                <p className="text-sm uppercase tracking-widest mb-1 font-medium" style={{ color: teamColor?.primary ?? '#64748b', fontFamily: "'Inter', sans-serif" }}>{player.team}</p>
-                <h2 className="text-4xl font-normal tracking-tight" style={{ fontFamily: "'DM Serif Display', Georgia, serif", color: '#1e293b' }}>{player.name}</h2>
-                <p className="text-sm text-slate-400 mt-1.5" style={{ fontFamily: "'Inter', sans-serif" }}>{player.gp} games &middot; {player.min.toFixed(1)} min/game &middot; {season}</p>
+            <div className="app-panel px-6 py-6 md:px-7">
+              <div className="flex items-end justify-between gap-6 flex-wrap">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.24em] mb-2 font-semibold" style={{ color: playerAccent }}>{player.team}</p>
+                  <h2 className="text-4xl md:text-5xl font-normal tracking-tight text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>{player.name}</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">{player.gp} games played, {player.min.toFixed(1)} minutes per game, with full shot profile, trend view, and season context for {season}.</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <MetricChip label="PTS" value={player.pts.toFixed(1)} />
+                  <MetricChip label="AST" value={player.ast.toFixed(1)} />
+                  <MetricChip label="REB" value={player.reb.toFixed(1)} />
+                </div>
               </div>
             </div>
 
@@ -309,6 +326,7 @@ export default function Dashboard() {
               <PlayerCard
                 player={player}
                 teamColor={teamColor!}
+                accentColor={playerAccent}
                 impactIndex={impactIndex.byPlayerId[player.player_id]
                   ? {
                       score: impactIndex.byPlayerId[player.player_id].score,
@@ -345,7 +363,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => setShowCompare(!showCompare)}
                   className="text-sm px-5 py-2.5 rounded-full transition-all font-medium"
-                  style={{ border: `1.5px solid ${teamColor?.primary ?? '#cbd5e1'}`, color: teamColor?.primary ?? '#334155', background: showCompare ? `${teamColor?.primary}10` : 'white' }}
+                  style={{ border: `1.5px solid ${playerAccent}35`, color: playerAccent, background: showCompare ? `${playerAccent}10` : 'white' }}
                 >{showCompare ? 'Hide comparison' : `Compare ${player.name.split(' ').pop()} with another player`}</button>
                 {showCompare && (
                   <select
@@ -1076,14 +1094,17 @@ function MetricChip({ label, value }: { label: string; value: string }) {
 
 function LandingGrid({ playersByTeam, onSelect }: { playersByTeam: [string, LeaguePlayer[]][]; onSelect: (id: number) => void }) {
   return (
-    <div className="py-4">
-      <h2 className="text-2xl font-light tracking-tight mb-2" style={{ fontFamily: "'Georgia', serif" }}>2026 Season</h2>
-      <p className="text-slate-400 text-sm mb-8">Select a player to explore their stats</p>
+    <div className="app-panel py-6 px-6 md:px-7">
+      <div className="max-w-2xl">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">Player directory</div>
+        <h2 className="mt-2 text-3xl tracking-tight text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Start with a player</h2>
+        <p className="text-slate-500 text-sm mt-2 mb-8">Browse the current league pool by team, then jump into a full player profile with trends, shot zones, and advanced context.</p>
+      </div>
       <div className="space-y-8">
         {playersByTeam.map(([team, players]) => {
           const tc = getTeamColors(team)
           return (
-            <div key={team}>
+            <div key={team} className="app-subcard p-4 md:p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-3 h-3 rounded-full" style={{ background: tc.primary }}></div>
                 <h3 className="text-sm font-semibold tracking-wide" style={{ color: tc.primary }}>{team}</h3>
@@ -1094,7 +1115,7 @@ function LandingGrid({ playersByTeam, onSelect }: { playersByTeam: [string, Leag
                   <button
                     key={p.player_id}
                     onClick={() => onSelect(p.player_id)}
-                    className="px-3 py-1.5 rounded-full text-sm bg-white border transition-all hover:shadow-md"
+                    className="ui-card-hover px-3 py-2 rounded-full text-sm bg-white border shadow-sm"
                     style={{ borderColor: `${tc.primary}30`, color: '#334155' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = tc.primary; e.currentTarget.style.color = tc.primary }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = `${tc.primary}30`; e.currentTarget.style.color = '#334155' }}
@@ -1122,18 +1143,19 @@ function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: League
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>Compare Players</h2>
-        <p className="text-sm text-slate-400 mt-1">{season} season &middot; All WNBA</p>
+      <div className="app-panel px-6 py-6">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">Comparison studio</div>
+        <h2 className="mt-2 text-3xl tracking-tight text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Compare Players</h2>
+        <p className="text-sm text-slate-500 mt-2">{season} season, side by side, with team color context and the same underlying player data.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+        <div className="app-card p-5">
           <label className="text-xs text-slate-400 block mb-1">Player A</label>
           <select
             value={idA ?? ''}
             onChange={e => setIdA(Number(e.target.value))}
-            className="w-full rounded-full px-4 py-2 text-sm bg-white border border-slate-200 cursor-pointer focus:outline-none"
+            className="ui-control w-full rounded-full px-4 py-2 text-sm bg-white border border-slate-200 cursor-pointer"
           >
             <option value="" disabled>Choose a player</option>
             {playersByTeam.map(([team, players]) => (
@@ -1145,12 +1167,12 @@ function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: League
             ))}
           </select>
         </div>
-        <div>
+        <div className="app-card p-5">
           <label className="text-xs text-slate-400 block mb-1">Player B</label>
           <select
             value={idB ?? ''}
             onChange={e => setIdB(Number(e.target.value))}
-            className="w-full rounded-full px-4 py-2 text-sm bg-white border border-slate-200 cursor-pointer focus:outline-none"
+            className="ui-control w-full rounded-full px-4 py-2 text-sm bg-white border border-slate-200 cursor-pointer"
           >
             <option value="" disabled>Choose a player</option>
             {playersByTeam.map(([team, players]) => (
