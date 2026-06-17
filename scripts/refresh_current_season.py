@@ -274,10 +274,15 @@ def main():
     data["last_updated"] = datetime.now().isoformat()
     write_json_atomic(DATA_FILE, data)
 
-    print("\n[4/4] Recomputing team forecast models...")
+    print("\n[4/5] Recomputing team forecast models...")
     result = subprocess.run([PYTHON, str(Path(__file__).parent / "train_team_forecasts.py")], cwd=Path(__file__).parent.parent)
     if result.returncode != 0:
         print(f"WARNING: forecast recompute failed with code {result.returncode}")
+
+    print("\n[5/5] Refreshing WNBA news headlines...")
+    result = subprocess.run([PYTHON, str(Path(__file__).parent / "fetch_wnba_news.py")], cwd=Path(__file__).parent.parent)
+    if result.returncode != 0:
+        print(f"WARNING: news refresh failed with code {result.returncode}")
 
     elapsed = (datetime.now() - start).total_seconds()
     print(f"\n{'=' * 50}")

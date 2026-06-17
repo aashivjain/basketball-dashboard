@@ -3,6 +3,7 @@ Master data fetch script. Runs all data ingestion in the correct order.
 1. Fetch Indiana Fever roster + stats + game logs + shot charts (per season)
 2. Fetch league-wide player stats for all seasons
 3. Fetch shot charts for all players across all seasons
+4. Fetch real WNBA news headlines
 """
 
 import subprocess
@@ -32,6 +33,7 @@ def main():
     run("fetch_all_shots.py", "Step 3: Fetching shot charts for all players (all seasons)")
     run("fetch_game_logs.py", "Step 4: Fetching game logs for all players (all seasons)")
     run("train_team_forecasts.py", "Step 5: Training random-forest team forecasts")
+    run("fetch_wnba_news.py", "Step 6: Fetching WNBA news headlines")
 
     print("\n" + "="*50)
     print("  All data fetched successfully!")
