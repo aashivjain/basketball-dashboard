@@ -131,7 +131,24 @@ export interface WnbaDashboardData {
     abbreviation: string
     current_season: string
   }
+  news?: NewsData
   seasons: Record<string, SeasonData | null>
+}
+
+export interface NewsArticle {
+  id: string
+  title: string
+  source: string
+  link: string
+  published_at: string
+  category: 'General' | 'Injuries' | 'Discipline' | 'Transactions'
+  summary: string
+  image_url?: string
+}
+
+export interface NewsData {
+  generated_at: string
+  articles: NewsArticle[]
 }
 
 export interface ForecastReason {

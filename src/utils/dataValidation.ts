@@ -1,6 +1,6 @@
 import rawData from '../data/wnba_data.json'
 import rawPredictions from '../data/team_predictions.json'
-import type { LeaguePlayer, SeasonBlock, SeasonData, TeamPredictionsData, WnbaDashboardData } from '../types'
+import type { LeaguePlayer, NewsArticle, NewsData, SeasonBlock, SeasonData, TeamPredictionsData, WnbaDashboardData } from '../types'
 
 type ValidationResult<T> = {
   data: T
@@ -96,6 +96,49 @@ function sanitizeSeasonData(value: unknown): SeasonData | null {
   }
 }
 
+function sanitizeNewsArticle(value: unknown): NewsArticle | null {
+  if (!isRecord(value)) return null
+  const imageUrl = value.image_url
+  if (
+    typeof value.id !== 'string' ||
+    typeof value.title !== 'string' ||
+    typeof value.source !== 'string' ||
+    typeof value.link !== 'string' ||
+    typeof value.published_at !== 'string' ||
+    typeof value.summary !== 'string' ||
+    typeof value.category !== 'string' ||
+    (imageUrl !== undefined && imageUrl !== null && typeof imageUrl !== 'string')
+  ) {
+    return null
+  }
+
+  if (!['General', 'Injuries', 'Discipline', 'Transactions'].includes(value.category)) {
+    return null
+  }
+
+  return {
+    id: value.id,
+    title: value.title,
+    source: value.source,
+    link: value.link,
+    published_at: value.published_at,
+    category: value.category,
+    summary: value.summary,
+    ...(typeof imageUrl === 'string' && imageUrl ? { image_url: imageUrl } : {}),
+  }
+}
+
+function sanitizeNewsData(value: unknown): NewsData | undefined {
+  if (!isRecord(value) || typeof value.generated_at !== 'string' || !Array.isArray(value.articles)) {
+    return undefined
+  }
+
+  return {
+    generated_at: value.generated_at,
+    articles: value.articles.map(sanitizeNewsArticle).filter(Boolean) as NewsArticle[],
+  }
+}
+
 export function sanitizeDashboardData(source: unknown): ValidationResult<WnbaDashboardData> {
   const issues: string[] = []
 
@@ -138,6 +181,7 @@ export function sanitizeDashboardData(source: unknown): ValidationResult<WnbaDas
         abbreviation: typeof team.abbreviation === 'string' ? team.abbreviation : 'WNBA',
         current_season: currentSeason,
       },
+      news: sanitizeNewsData(source.news),
       seasons,
     },
     issues,
