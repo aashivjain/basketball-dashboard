@@ -76,20 +76,46 @@ export default function NextGamePrediction({ block }: Props) {
       })
       .sort((a, b) => b.rfPct - a.rfPct)
   }, [focusTeam, selectedTeam, teamProfiles, venue])
+  const summaryCards = useMemo(() => {
+    const bestMatchup = matchupRows[0]
+    const lineupHeadline = lineupLab?.headline ?? 'Lineup tools ready once a valid rotation sample is available.'
+    return [
+      {
+        label: 'Immediate Outlook',
+        title: bestMatchup
+          ? `${selectedTeam} vs ${bestMatchup.opponent.team}`
+          : `${selectedTeam} snapshot`,
+        detail: bestMatchup
+          ? `${selectedTeam} projects at ${bestMatchup.rfPct.toFixed(0)}% in the strongest current matchup view.`
+          : 'No matchup board available yet.',
+        accent: focusColors.primary,
+      },
+      {
+        label: 'Roster Signal',
+        title: rosterSignals?.mostValuable.player.name ?? 'Core player',
+        detail: rosterSignals?.mostValuable.detail ?? 'Roster signal will appear once the team profile is ready.',
+        accent: focusColors.secondary,
+      },
+      {
+        label: 'Lineup Read',
+        title: lineupLab ? lineupHeadline.replace(/\.$/, '') : 'Lineup view unavailable',
+        detail: lineupLab?.summary ?? 'Lineup impact analysis is waiting for enough available team data.',
+        accent: '#0f172a',
+      },
+    ]
+  }, [focusColors.primary, focusColors.secondary, lineupLab, matchupRows, rosterSignals, selectedTeam])
 
   if (!block || !focusTeam || teamProfiles.length < 2) {
     return null
   }
 
   return (
-    <section className="rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.35)]">
+    <section className="app-panel p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">Team Predictions</p>
           <h2 className="text-[28px] text-slate-900 mt-1">Team dashboard</h2>
-          <p className="text-sm text-slate-500 mt-2 max-w-3xl">
-            Pick a team, then open the sections you want to inspect.
-          </p>
+          <p className="text-sm text-slate-500 mt-2 max-w-3xl">Fast team context up top, deeper lineup and matchup tools below.</p>
           {predictionState.issues.length > 0 && (
             <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Forecast safeguards active: {predictionState.issues.join(' ')} Falling back to live weighted matchup estimates where needed.
@@ -106,7 +132,7 @@ export default function NextGamePrediction({ block }: Props) {
           <select
             value={selectedTeam}
             onChange={event => setSelectedTeam(event.target.value)}
-            className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-slate-700 focus:outline-none"
+            className="ui-control rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-slate-700"
           >
             {teamProfiles.map(team => (
               <option key={team.team} value={team.team}>
@@ -117,7 +143,17 @@ export default function NextGamePrediction({ block }: Props) {
         </div>
       </div>
 
-      <div className="mt-5 rounded-[22px] border border-slate-200 overflow-hidden">
+      <div className="mt-6 grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {summaryCards.map(card => (
+          <div key={card.label} className="app-card p-5">
+            <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: card.accent }}>{card.label}</div>
+            <div className="mt-2 text-xl text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>{card.title}</div>
+            <div className="mt-2 text-sm leading-6 text-slate-600">{card.detail}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_50px_-38px_rgba(15,23,42,0.26)]">
         {rosterSignals && (
           <CollapsibleSection
             title="Roster Summary"
@@ -318,13 +354,13 @@ function CollapsibleSection({
     <div className="border-b border-slate-200 last:border-b-0">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 bg-white px-4 py-3 text-left md:px-5"
+        className="ui-nav-button flex w-full items-center justify-between gap-4 bg-white px-4 py-4 text-left md:px-5"
       >
         <div>
           <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-slate-700">{title}</div>
           <div className="mt-1 text-[12px] text-slate-500">{subtitle}</div>
         </div>
-        <div className="shrink-0 rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-600">
+        <div className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[12px] font-semibold text-slate-600">
           {isOpen ? 'Hide' : 'Open'}
         </div>
       </button>

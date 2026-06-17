@@ -3,29 +3,31 @@ import type { LeaguePlayer } from '../types'
 interface Props {
   player: LeaguePlayer
   teamColor: { primary: string; secondary: string; bg: string }
+  accentColor?: string
   impactIndex?: { score: number; average: number; summary: string } | null
 }
 
-export default function PlayerCard({ player, teamColor, impactIndex }: Props) {
+export default function PlayerCard({ player, teamColor, accentColor, impactIndex }: Props) {
   const s = player
+  const accent = accentColor ?? teamColor.primary
 
   return (
-    <div className="h-full rounded-2xl p-6 transition-all flex" style={{ background: 'white', border: `1px solid ${teamColor.primary}15` }}>
+    <div className="app-card ui-card-hover h-full p-6 flex" style={{ borderColor: `${accent}18` }}>
       <div className="space-y-4 flex flex-col w-full h-full">
         {impactIndex && (
           <>
-            <div className="rounded-2xl border px-4 py-4" style={{ borderColor: `${teamColor.primary}22`, background: `${teamColor.primary}08` }}>
+            <div className="rounded-[22px] border px-4 py-4" style={{ borderColor: `${accent}22`, background: `${accent}08` }}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500 font-semibold">Player Impact Index</div>
-                  <div className="mt-2 text-4xl font-light tracking-tight" style={{ color: teamColor.primary, fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                  <div className="mt-2 text-4xl font-light tracking-tight" style={{ color: accent, fontFamily: "'DM Serif Display', Georgia, serif" }}>
                     {impactIndex.score.toFixed(0)}
                   </div>
                   <div className="mt-1 text-[12px] text-slate-500">
                     Average player: <span className="font-semibold text-slate-700">{impactIndex.average.toFixed(0)}</span>
                   </div>
                 </div>
-                <div className="min-w-[92px] rounded-full border border-slate-200 bg-white px-3 py-1.5 text-center">
+                <div className="min-w-[92px] rounded-full border border-slate-200 bg-white px-3 py-1.5 text-center shadow-sm">
                   <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">League Avg</div>
                   <div className="mt-1 text-lg font-semibold text-slate-800">{impactIndex.average.toFixed(0)}</div>
                 </div>
@@ -70,31 +72,31 @@ export default function PlayerCard({ player, teamColor, impactIndex }: Props) {
               </details>
             </div>
 
-            <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
+            <div className="h-px w-full" style={{ background: `${accent}15` }}></div>
           </>
         )}
 
         {/* main stat - ppg */}
-        <div className="text-center">
-          <div className="text-5xl font-light tracking-tight" style={{ color: teamColor.primary, fontFamily: "'DM Serif Display', Georgia, serif" }}>{s.pts.toFixed(1)}</div>
+        <div className="text-center rounded-[22px] bg-slate-50/80 px-4 py-5">
+          <div className="text-5xl font-light tracking-tight" style={{ color: accent, fontFamily: "'DM Serif Display', Georgia, serif" }}>{s.pts.toFixed(1)}</div>
           <div className="text-xs uppercase tracking-widest text-slate-400 mt-1.5 font-medium">points per game</div>
         </div>
 
-        <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
+        <div className="h-px w-full" style={{ background: `${accent}15` }}></div>
 
         <div className="grid grid-cols-2 gap-4">
-          <StatItem label="REB" value={s.reb.toFixed(1)} color={teamColor.primary} />
-          <StatItem label="AST" value={s.ast.toFixed(1)} color={teamColor.primary} />
-          <StatItem label="STL" value={s.stl.toFixed(1)} color={teamColor.primary} />
-          <StatItem label="BLK" value={s.blk.toFixed(1)} color={teamColor.primary} />
+          <StatItem label="REB" value={s.reb.toFixed(1)} color={accent} />
+          <StatItem label="AST" value={s.ast.toFixed(1)} color={accent} />
+          <StatItem label="STL" value={s.stl.toFixed(1)} color={accent} />
+          <StatItem label="BLK" value={s.blk.toFixed(1)} color={accent} />
         </div>
 
-        <div className="h-px w-full" style={{ background: `${teamColor.primary}15` }}></div>
+        <div className="h-px w-full" style={{ background: `${accent}15` }}></div>
 
         <div className="grid grid-cols-3 gap-3 text-center py-2 mt-auto">
-          <MiniStat label="FG%" value={`${(s.fg_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
-          <MiniStat label="3P%" value={`${(s.fg3_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
-          <MiniStat label="FT%" value={`${(s.ft_pct * 100).toFixed(1)}%`} color={teamColor.primary} />
+          <MiniStat label="FG%" value={`${(s.fg_pct * 100).toFixed(1)}%`} color={accent} />
+          <MiniStat label="3P%" value={`${(s.fg3_pct * 100).toFixed(1)}%`} color={accent} />
+          <MiniStat label="FT%" value={`${(s.ft_pct * 100).toFixed(1)}%`} color={accent} />
         </div>
       </div>
     </div>

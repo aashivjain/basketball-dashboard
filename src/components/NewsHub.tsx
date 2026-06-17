@@ -6,8 +6,6 @@ import { buildTeamProfiles } from '../utils/teamPrediction'
 interface Props {
   block: SeasonBlock | null
   news: NewsData | undefined
-  season: string
-  seasonType: 'regular_season' | 'playoffs'
 }
 
 type SignalItem = {
@@ -18,7 +16,7 @@ type SignalItem = {
   accent: string
 }
 
-export default function NewsHub({ block, news, season, seasonType }: Props) {
+export default function NewsHub({ block, news }: Props) {
   const articles = useMemo(
     () => (news?.articles ?? []).filter(article => isFreshArticle(article.published_at)),
     [news]
@@ -40,18 +38,18 @@ export default function NewsHub({ block, news, season, seasonType }: Props) {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.35)]">
+      <div className="app-panel p-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Signals</div>
             <h3 className="mt-2 text-2xl text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Quick Watch</h3>
           </div>
-          <div className="text-sm text-slate-500">{season} {seasonType === 'regular_season' ? 'Regular Season' : 'Playoffs'}</div>
+          <div className="text-sm text-slate-500">League pulse</div>
         </div>
 
         <div className="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {signals.map(signal => (
-            <div key={signal.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4">
+            <div key={signal.id} className="app-subcard px-4 py-4">
               <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: signal.accent }}>
                 {signal.label}
               </div>
@@ -62,7 +60,7 @@ export default function NewsHub({ block, news, season, seasonType }: Props) {
         </div>
       </div>
 
-      <div className="rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.35)]">
+      <div className="app-panel p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">News Desk</div>
@@ -76,7 +74,7 @@ export default function NewsHub({ block, news, season, seasonType }: Props) {
         </div>
 
         <div className="mt-6 grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-6">
-          <article className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
+          <article className="app-card overflow-hidden">
             {leadArticle ? (
               <>
                 {leadImage ? (
@@ -99,6 +97,7 @@ export default function NewsHub({ block, news, season, seasonType }: Props) {
                 )}
 
                 <div className="p-6">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 font-semibold">Featured story</div>
                   <h3 className="text-3xl leading-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
                     <a href={leadArticle.link} target="_blank" rel="noreferrer" className="hover:text-slate-700 transition-colors">
                       {leadArticle.title}
@@ -118,20 +117,23 @@ export default function NewsHub({ block, news, season, seasonType }: Props) {
             )}
           </article>
 
-          <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+          <div className="app-card p-5">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Latest Headlines</div>
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Latest Headlines</div>
+                <div className="mt-1 text-sm text-slate-500">Fresh league movement, injuries, and key talking points.</div>
+              </div>
               <div className="text-[11px] text-slate-400">{headlineList.length} stories</div>
             </div>
             <div className="mt-3 divide-y divide-slate-100">
               {headlineList.length > 0 ? (
-                headlineList.map(article => (
+                headlineList.map((article, index) => (
                   <a
                     key={article.id}
                     href={article.link}
                     target="_blank"
                     rel="noreferrer"
-                    className="block py-3 first:pt-0 last:pb-0"
+                    className={`ui-card-hover block rounded-2xl px-3 py-3 ${index === 0 ? 'bg-slate-50/80' : ''}`}
                   >
                     <div className="flex items-center gap-2 text-[11px] text-slate-400 font-semibold flex-wrap">
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-500">
@@ -141,7 +143,7 @@ export default function NewsHub({ block, news, season, seasonType }: Props) {
                       <span className="text-slate-300">•</span>
                       <span>{formatPublished(article.published_at)}</span>
                     </div>
-                    <div className="mt-1 text-[15px] leading-6 font-semibold text-slate-800 hover:text-slate-600 transition-colors">
+                    <div className={`mt-1 leading-6 font-semibold text-slate-800 hover:text-slate-600 transition-colors ${index === 0 ? 'text-[17px]' : 'text-[15px]'}`}>
                       {article.title}
                     </div>
                     {article.summary && (
