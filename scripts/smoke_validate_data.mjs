@@ -27,6 +27,24 @@ function validateDashboardData(data) {
     assert(seasonData.regular_season, `Season ${season} missing regular_season.`)
     assert(Array.isArray(seasonData.regular_season.all_players), `Season ${season} all_players must be an array.`)
   }
+
+  if (data.news != null) {
+    assert(typeof data.news === 'object', 'Dashboard news must be an object when present.')
+    assert(typeof data.news.generated_at === 'string', 'Dashboard news.generated_at must be a string.')
+    assert(Array.isArray(data.news.articles), 'Dashboard news.articles must be an array.')
+
+    for (const [index, article] of data.news.articles.entries()) {
+      assert(article && typeof article === 'object', `News article ${index} must be an object.`)
+      assert(typeof article.id === 'string', `News article ${index} id must be a string.`)
+      assert(typeof article.title === 'string', `News article ${index} title must be a string.`)
+      assert(typeof article.source === 'string', `News article ${index} source must be a string.`)
+      assert(typeof article.link === 'string', `News article ${index} link must be a string.`)
+      assert(typeof article.published_at === 'string', `News article ${index} published_at must be a string.`)
+      assert(typeof article.summary === 'string', `News article ${index} summary must be a string.`)
+      assert(article.image_url === undefined || article.image_url === null || typeof article.image_url === 'string', `News article ${index} image_url must be a string when present.`)
+      assert(['General', 'Injuries', 'Discipline', 'Transactions'].includes(article.category), `News article ${index} category is invalid.`)
+    }
+  }
 }
 
 function validatePredictions(data, dashboardData) {
