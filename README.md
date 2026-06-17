@@ -1,6 +1,6 @@
 # WNBA Analytics Dashboard
 
-Full-league analytics dashboard covering all WNBA teams and players (2024-2026). It uses real data from the official WNBA stats API and includes player profiles, shot charts, game logs, growth trends, and team matchup forecasts.
+Full-league analytics dashboard covering all WNBA teams and players (2024-2026). It uses real data from the official WNBA stats API and includes player profiles, shot charts, game logs, growth trends, team matchup forecasts, and a WNBA news tab.
 
 ## Data Privacy Notes
 
@@ -20,6 +20,13 @@ Python packages used by the data pipeline:
 - `requests`
 - `scikit-learn`
 - `numpy`
+
+## API Keys
+
+- No API keys are currently required.
+- WNBA stats come from the `nba_api` package calling the official WNBA stats endpoints.
+- The News tab uses public Google News RSS queries and does not require a key.
+- This is the preferred setup for simplicity, but public RSS/news endpoints can still change behavior, rate-limit, or go down.
 
 ## Install
 
@@ -54,9 +61,11 @@ The scripts write generated files here:
 
 The React app reads from those same files.
 
+The WNBA news feed is stored inside `src/data/wnba_data.json` under the top-level `news` field.
+
 ## Generate All Data
 
-This pulls roster data, league player data, game logs, shot charts, and forecast data.
+This pulls roster data, league player data, game logs, shot charts, forecast data, and WNBA news headlines.
 
 ### Windows
 
@@ -90,7 +99,7 @@ Open `http://localhost:5173`
 
 ### Full refresh
 
-Updates current-season player stats, game logs, shot charts, and team forecasts.
+Updates current-season player stats, game logs, shot charts, team forecasts, and WNBA news headlines.
 
 ### Windows
 
@@ -106,7 +115,7 @@ npm run refresh
 
 ### Fast refresh
 
-Skips shot chart refetching but still updates stats, game logs, and forecasts.
+Skips shot chart refetching but still updates stats, game logs, forecasts, and news headlines.
 
 ### Windows
 
@@ -134,9 +143,25 @@ npm run train:forecasts
 .venv/bin/python scripts/train_team_forecasts.py
 ```
 
+## Refresh News Only
+
+This pulls current WNBA headlines for the News tab and writes them into `src/data/wnba_data.json`.
+
+### Windows
+
+```powershell
+npm run refresh:news
+```
+
+### macOS
+
+```bash
+.venv/bin/python scripts/fetch_wnba_news.py
+```
+
 ## Smoke Check
 
-Validate that the generated JSON files exist, parse correctly, and stay season-aligned:
+Validate that the generated JSON files exist, parse correctly, stay season-aligned, and that the optional `news` block is well-formed when present:
 
 ```bash
 npm run smoke:data
@@ -157,6 +182,7 @@ npm run build
 - `scripts/fetch_league_players.py` updates `src/data/wnba_data.json`
 - `scripts/refresh_current_season.py` updates `src/data/wnba_data.json`
 - `scripts/train_team_forecasts.py` writes `src/data/team_predictions.json`
+- `scripts/fetch_wnba_news.py` updates `src/data/wnba_data.json` under `news`
 
 ## Features
 
@@ -167,6 +193,7 @@ npm run build
 - Season-over-season growth tracking
 - Player comparison
 - Team matchup forecasts
+- WNBA news headlines
 
 ## Tech
 
@@ -189,6 +216,7 @@ scripts/
 ├── fetch_game_logs.py
 ├── fetch_all_shots.py
 ├── fetch_league_players.py
+├── fetch_wnba_news.py
 ├── refresh_current_season.py
 ├── train_team_forecasts.py
 └── smoke_validate_data.mjs

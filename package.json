@@ -10,6 +10,7 @@
     "smoke:data": "node scripts/smoke_validate_data.mjs",
     "smoke": "npm run smoke:data",
     "preview": "vite preview",
+    "refresh:news": ".\\.venv\\Scripts\\python scripts\\fetch_wnba_news.py",
     "train:forecasts": ".\\.venv\\Scripts\\python scripts\\train_team_forecasts.py",
     "refresh": ".\\.venv\\Scripts\\python scripts\\refresh_current_season.py",
     "refresh:fast": ".\\.venv\\Scripts\\python scripts\\refresh_current_season.py --fast"
