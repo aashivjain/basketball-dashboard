@@ -95,6 +95,17 @@ npm run dev
 
 Open `http://localhost:5173`
 
+The app now uses real client-side routes:
+
+- `/players`
+- `/players/compare`
+- `/players/rankings`
+- `/players/builder`
+- `/teams`
+- `/news`
+
+You can open those paths directly in local development once the dev server is running.
+
 ## Refresh Current Season Data
 
 ### Full refresh
@@ -173,6 +184,14 @@ Recommended quick check before shipping:
 npm run smoke
 npm run build
 ```
+
+## Routing And Deployment Notes
+
+- The app uses client-side routing via `react-router-dom`.
+- Local run commands are unchanged. You still start it with `npm run dev`.
+- Browser refreshes and direct visits to valid routes work in development because Vite serves the SPA.
+- For production hosting, configure your host to rewrite unknown app routes back to `index.html`.
+- Without an SPA fallback rewrite, direct visits like `/news` or `/teams` may 404 on some hosts.
 
 ## Script I/O Map
 

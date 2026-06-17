@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import type { SeasonData, LeaguePlayer } from '../types'
 import { getReadableTeamAccent, getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
@@ -15,6 +16,16 @@ import NextGamePrediction from './NextGamePrediction'
 import NewsHub from './NewsHub'
 import { buildPlayerImpactIndex } from '../utils/playerImpact'
 import { loadDashboardData } from '../utils/dataValidation'
+import { useDashboardState, usePlayerSelectionState } from '../hooks/useDashboardState'
+import {
+  getAvailableSeasons,
+  getGrowthData,
+  getPlayerGames,
+  getPlayerShots,
+  getPlayersByTeam,
+  getPositionAverage,
+  getRosterById,
+} from '../utils/dashboardSelectors'
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -22,59 +33,56 @@ function clamp(value: number, min: number, max: number) {
 
 export default function Dashboard() {
   const { data, issues: dataIssues } = loadDashboardData()
-  const [season, setSeason] = useState(data.team.current_season)
-  const [seasonType, setSeasonType] = useState<'regular_season' | 'playoffs'>('regular_season')
-  const [playerId, setPlayerId] = useState<number | null>(null)
-  const [compareId, setCompareId] = useState<number | null>(null)
-  const [showCompare, setShowCompare] = useState(false)
-  const [section, setSection] = useState<'players' | 'teams' | 'news'>('players')
-  const [playerTab, setPlayerTab] = useState<'overview' | 'compare' | 'rankings' | 'builder'>('overview')
-
-  const availableSeasons = useMemo(
-    () => Object.keys(data.seasons).filter(s => data.seasons[s] !== null).sort(),
-    []
-  )
+  const availableSeasons = useMemo(() => getAvailableSeasons(data), [data])
+  const {
+    season,
+    setSeason,
+    seasonType,
+    setSeasonType,
+  } = useDashboardState({
+    initialSeason: data.team.current_season,
+    availableSeasons,
+  })
   const seasonData = data.seasons[season] as SeasonData | null
   const block = seasonData ? seasonData[seasonType] : null
   const allPlayers: LeaguePlayer[] = useMemo(() => block?.all_players ?? [], [block])
-  const rosterById = useMemo(() => {
-    const entries = seasonData?.roster ?? []
-    return new Map(entries.map(player => [player.player_id, player]))
-  }, [seasonData])
-
-  const playersByTeam = useMemo(() => {
-    const map: Record<string, LeaguePlayer[]> = {}
-    for (const p of allPlayers) {
-      if (!map[p.team]) map[p.team] = []
-      map[p.team].push(p)
-    }
-    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [allPlayers])
+  const {
+    playerId,
+    setPlayerId,
+    compareId,
+    setCompareId,
+    showCompare,
+    setShowCompare,
+  } = usePlayerSelectionState(allPlayers)
+  const rosterById = useMemo(() => getRosterById(seasonData), [seasonData])
+  const playersByTeam = useMemo(() => getPlayersByTeam(allPlayers), [allPlayers])
 
   const impactIndex = useMemo(() => buildPlayerImpactIndex(allPlayers), [allPlayers])
 
   const player = useMemo(() => allPlayers.find(p => p.player_id === playerId) ?? null, [allPlayers, playerId])
-  const games = useMemo(() => (playerId && block ? block.game_logs[String(playerId)] ?? [] : []), [block, playerId])
-  const shots = useMemo(() => (playerId && block ? block.shot_charts[String(playerId)] ?? [] : []), [block, playerId])
+  const games = useMemo(() => getPlayerGames(block, playerId), [block, playerId])
+  const shots = useMemo(() => getPlayerShots(block, playerId), [block, playerId])
   const leagueAvg = block?.league_averages ?? null
   const comparePlayer: LeaguePlayer | null = useMemo(
     () => allPlayers.find(p => p.player_id === compareId) ?? null,
     [allPlayers, compareId]
   )
 
-  const growthData = useMemo(() => {
-    if (!playerId) return []
-    return availableSeasons.map(yr => {
-      const sd = data.seasons[yr]
-      if (!sd) return null
-      // Look in all_players first (works for every player), then fall back to stats (Fever detailed)
-      const ap = sd.regular_season.all_players?.find(x => x.player_id === playerId)
-      if (ap) return { season: yr, ...ap }
-      const s = sd.regular_season.stats.find(x => x.player_id === playerId)
-      if (!s) return null
-      return { season: yr, ...s }
-    }).filter(Boolean) as any[]
-  }, [playerId])
+  const growthData = useMemo(() => getGrowthData(data, availableSeasons, playerId), [data, availableSeasons, playerId])
+  const location = useLocation()
+  const pathname = location.pathname
+  const section: 'players' | 'teams' | 'news' = pathname.startsWith('/teams')
+    ? 'teams'
+    : pathname.startsWith('/news')
+      ? 'news'
+      : 'players'
+  const playerTab: 'overview' | 'compare' | 'rankings' | 'builder' = pathname === '/players/compare'
+    ? 'compare'
+    : pathname === '/players/rankings'
+      ? 'rankings'
+      : pathname === '/players/builder'
+        ? 'builder'
+        : 'overview'
 
   const teamColor = player ? getTeamColors(player.team) : null
   const playerAccent = player ? getReadableTeamAccent(player.team) : '#334155'
@@ -106,51 +114,7 @@ export default function Dashboard() {
             ? `${season} custom player modeling against the live WNBA baseline.`
             : `${season} player profiles with shot maps, trends, and advanced context.`
 
-  useEffect(() => {
-    if (!availableSeasons.includes(season) && availableSeasons.length > 0) {
-      setSeason(availableSeasons[availableSeasons.length - 1])
-    }
-  }, [season])
-
-  useEffect(() => {
-    if (!allPlayers.length) {
-      setPlayerId(null)
-      setCompareId(null)
-      setShowCompare(false)
-      return
-    }
-
-    if (playerId === null || !allPlayers.some(player => player.player_id === playerId)) {
-      setPlayerId(allPlayers[0]?.player_id ?? null)
-      setCompareId(null)
-      setShowCompare(false)
-    }
-  }, [allPlayers, playerId])
-
-  // Compute position averages by classifying players into Guard/Wing/Big
-  const positionAvg = useMemo(() => {
-    if (!player || allPlayers.length === 0) return null
-    const normalizePosition = (position: string | undefined) => {
-      if (!position) return null
-      if (position.includes('G')) return 'Guard'
-      if (position.includes('F')) return 'Wing'
-      if (position.includes('C')) return 'Big'
-      return null
-    }
-    const classify = (p: LeaguePlayer) => {
-      const listed = normalizePosition(rosterById.get(p.player_id)?.position)
-      if (listed) return listed
-      if (p.ast >= p.reb * 0.7 && p.reb < 6) return 'Guard'
-      if (p.reb >= p.ast * 2.5 || p.reb >= 7) return 'Big'
-      return 'Wing'
-    }
-    const pos = classify(player)
-    const group = allPlayers.filter(p => classify(p) === pos && p.gp >= 5)
-    if (group.length === 0) return null
-    const avg = (key: 'pts' | 'reb' | 'ast' | 'stl' | 'blk') =>
-      group.reduce((s, p) => s + p[key], 0) / group.length
-    return { pts: avg('pts'), reb: avg('reb'), ast: avg('ast'), stl: avg('stl'), blk: avg('blk'), label: pos }
-  }, [player, allPlayers, rosterById])
+  const positionAvg = useMemo(() => getPositionAverage(player, allPlayers, rosterById), [player, allPlayers, rosterById])
 
   return (
     <div className="ui-shell min-h-screen transition-colors duration-500" style={{ background: isPlayersOverview && player && teamColor ? `linear-gradient(180deg, ${teamColor.bg} 0%, #edf2f7 28%)` : undefined }}>
@@ -168,21 +132,21 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 p-1 text-sm shadow-sm">
-              <button
-                onClick={() => setSection('players')}
+              <NavLink
+                to="/players"
                 className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'players' ? '#1e293b' : 'transparent', color: section === 'players' ? '#fff' : '#64748b', fontWeight: 600 }}
-              >Players</button>
-              <button
-                onClick={() => setSection('teams')}
+              >Players</NavLink>
+              <NavLink
+                to="/teams"
                 className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
-              >Teams</button>
-              <button
-                onClick={() => setSection('news')}
+              >Teams</NavLink>
+              <NavLink
+                to="/news"
                 className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'news' ? '#1e293b' : 'transparent', color: section === 'news' ? '#fff' : '#64748b', fontWeight: 600 }}
-              >News</button>
+              >News</NavLink>
             </div>
           </div>
 
@@ -222,26 +186,26 @@ export default function Dashboard() {
               {section === 'players' && (
               <>
                 <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
-                <button
-                  onClick={() => setPlayerTab('overview')}
+                <NavLink
+                  to="/players"
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'overview' ? '#1e293b' : 'transparent', color: playerTab === 'overview' ? '#fff' : '#64748b', fontWeight: playerTab === 'overview' ? 600 : 500 }}
-                >Overview</button>
-                <button
-                  onClick={() => setPlayerTab('compare')}
+                >Overview</NavLink>
+                <NavLink
+                  to="/players/compare"
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'compare' ? '#1e293b' : 'transparent', color: playerTab === 'compare' ? '#fff' : '#64748b', fontWeight: playerTab === 'compare' ? 600 : 500 }}
-                >Compare</button>
-                <button
-                  onClick={() => setPlayerTab('rankings')}
+                >Compare</NavLink>
+                <NavLink
+                  to="/players/rankings"
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'rankings' ? '#1e293b' : 'transparent', color: playerTab === 'rankings' ? '#fff' : '#64748b', fontWeight: playerTab === 'rankings' ? 600 : 500 }}
-                >Rankings</button>
-                <button
-                  onClick={() => setPlayerTab('builder')}
+                >Rankings</NavLink>
+                <NavLink
+                  to="/players/builder"
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'builder' ? '#1e293b' : 'transparent', color: playerTab === 'builder' ? '#fff' : '#64748b', fontWeight: playerTab === 'builder' ? 600 : 500 }}
-                >Builder</button>
+                >Builder</NavLink>
                 </nav>
 
                 {isPlayersOverview && (
