@@ -99,6 +99,7 @@ function sanitizeSeasonData(value: unknown): SeasonData | null {
 function sanitizeNewsArticle(value: unknown): NewsArticle | null {
   if (!isRecord(value)) return null
   const imageUrl = value.image_url
+  const category = value.category
   if (
     typeof value.id !== 'string' ||
     typeof value.title !== 'string' ||
@@ -106,13 +107,13 @@ function sanitizeNewsArticle(value: unknown): NewsArticle | null {
     typeof value.link !== 'string' ||
     typeof value.published_at !== 'string' ||
     typeof value.summary !== 'string' ||
-    typeof value.category !== 'string' ||
+    typeof category !== 'string' ||
     (imageUrl !== undefined && imageUrl !== null && typeof imageUrl !== 'string')
   ) {
     return null
   }
 
-  if (!['General', 'Injuries', 'Discipline', 'Transactions'].includes(value.category)) {
+  if (!['General', 'Injuries', 'Discipline', 'Transactions'].includes(category)) {
     return null
   }
 
@@ -122,7 +123,7 @@ function sanitizeNewsArticle(value: unknown): NewsArticle | null {
     source: value.source,
     link: value.link,
     published_at: value.published_at,
-    category: value.category,
+    category: category as NewsArticle['category'],
     summary: value.summary,
     ...(typeof imageUrl === 'string' && imageUrl ? { image_url: imageUrl } : {}),
   }

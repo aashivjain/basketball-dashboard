@@ -24,3 +24,39 @@ const fallback = { primary: '#334155', secondary: '#64748b', bg: '#f8fafc' }
 export function getTeamColors(abbr: string) {
   return teamColors[abbr] || fallback
 }
+
+function hexToRgb(hex: string) {
+  const normalized = hex.replace('#', '')
+  const value = normalized.length === 3
+    ? normalized.split('').map(char => char + char).join('')
+    : normalized
+  const int = Number.parseInt(value, 16)
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  }
+}
+
+function relativeLuminance(hex: string) {
+  const { r, g, b } = hexToRgb(hex)
+  const transform = (channel: number) => {
+    const normalized = channel / 255
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+
+  return 0.2126 * transform(r) + 0.7152 * transform(g) + 0.0722 * transform(b)
+}
+
+export function getReadableTeamAccent(abbr: string) {
+  const palette = getTeamColors(abbr)
+  const primaryLuminance = relativeLuminance(palette.primary)
+  if (primaryLuminance <= 0.3) return palette.primary
+
+  const secondaryLuminance = relativeLuminance(palette.secondary)
+  if (secondaryLuminance <= 0.3) return palette.secondary
+
+  return '#1e293b'
+}
