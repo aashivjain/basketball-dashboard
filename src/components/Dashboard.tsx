@@ -12,6 +12,7 @@ import PlayerComparison from './PlayerComparison'
 import GrowthChart from './GrowthChart'
 import AdvancedStats from './AdvancedStats'
 import NextGamePrediction from './NextGamePrediction'
+import NewsHub from './NewsHub'
 import { buildPlayerImpactIndex } from '../utils/playerImpact'
 import { loadDashboardData } from '../utils/dataValidation'
 
@@ -26,7 +27,7 @@ export default function Dashboard() {
   const [playerId, setPlayerId] = useState<number | null>(null)
   const [compareId, setCompareId] = useState<number | null>(null)
   const [showCompare, setShowCompare] = useState(false)
-  const [section, setSection] = useState<'players' | 'teams'>('players')
+  const [section, setSection] = useState<'players' | 'teams' | 'news'>('players')
   const [playerTab, setPlayerTab] = useState<'overview' | 'compare' | 'rankings' | 'builder'>('overview')
 
   const availableSeasons = useMemo(
@@ -80,7 +81,7 @@ export default function Dashboard() {
   const isPlayersCompare = section === 'players' && playerTab === 'compare'
   const isPlayersRankings = section === 'players' && playerTab === 'rankings'
   const isPlayersBuilder = section === 'players' && playerTab === 'builder'
-  const showSeasonTypeToggle = section === 'players' || section === 'teams'
+  const showSeasonTypeToggle = section === 'players' || section === 'teams' || section === 'news'
 
   useEffect(() => {
     if (!availableSeasons.includes(season) && availableSeasons.length > 0) {
@@ -140,6 +141,8 @@ export default function Dashboard() {
               <p className="text-[11px] text-slate-400 mt-0.5">
                 {section === 'teams'
                   ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoffs'} team dashboard`
+                  : section === 'news'
+                    ? `${season} ${seasonType === 'regular_season' ? 'Regular Season' : 'Playoffs'} League News`
                   : isPlayersOverview
                     ? `${season} player profile`
                     : isPlayersCompare
@@ -200,6 +203,11 @@ export default function Dashboard() {
                 className="rounded-full px-3 py-1 transition-all"
                 style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Teams</button>
+              <button
+                onClick={() => setSection('news')}
+                className="rounded-full px-3 py-1 transition-all"
+                style={{ background: section === 'news' ? '#1e293b' : 'transparent', color: section === 'news' ? '#fff' : '#64748b', fontWeight: 600 }}
+              >News</button>
             </div>
 
             {section === 'players' && (
@@ -277,6 +285,8 @@ export default function Dashboard() {
         )}
         {section === 'teams' ? (
           <NextGamePrediction block={block} />
+        ) : section === 'news' ? (
+          <NewsHub block={block} news={data.news} season={season} seasonType={seasonType} />
         ) : playerTab === 'compare' ? (
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
         ) : playerTab === 'rankings' ? (
