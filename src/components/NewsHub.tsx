@@ -26,13 +26,20 @@ export default function NewsHub({ block, news }: Props) {
   const headlineList = useMemo(() => {
     const leadId = leadArticle?.id
     const transactionLimit = 2
-    let transactionsSeen = 0
-    return articles.filter(article => {
-      if (article.id === leadId) return false
-      if (article.category !== 'Transactions') return true
-      transactionsSeen += 1
-      return transactionsSeen <= transactionLimit
-    }).slice(0, 8)
+    const selected: typeof articles = []
+    let transactionCount = 0
+
+    for (const article of articles) {
+      if (article.id === leadId) continue
+      if (article.category === 'Transactions') {
+        if (transactionCount >= transactionLimit) continue
+        transactionCount += 1
+      }
+      selected.push(article)
+      if (selected.length >= 8) break
+    }
+
+    return selected
   }, [articles, leadArticle])
   const signals = useMemo(() => buildSignalItems(block), [block])
 

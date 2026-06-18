@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { LeaguePlayer } from '../types'
 
 type SeasonType = 'regular_season' | 'playoffs'
@@ -8,49 +8,45 @@ export function useDashboardState(options: {
   availableSeasons: string[]
 }) {
   const { initialSeason, availableSeasons } = options
-  const [season, setSeason] = useState(initialSeason)
+  const [requestedSeason, setRequestedSeason] = useState(initialSeason)
   const [seasonType, setSeasonType] = useState<SeasonType>('regular_season')
-
-  useEffect(() => {
-    if (!availableSeasons.includes(season) && availableSeasons.length > 0) {
-      setSeason(availableSeasons[availableSeasons.length - 1])
+  const season = useMemo(() => {
+    if (availableSeasons.includes(requestedSeason)) {
+      return requestedSeason
     }
-  }, [availableSeasons, season])
+    return availableSeasons[availableSeasons.length - 1] ?? requestedSeason
+  }, [availableSeasons, requestedSeason])
 
   return {
     season,
-    setSeason,
+    setSeason: setRequestedSeason,
     seasonType,
     setSeasonType,
   }
 }
 
 export function usePlayerSelectionState(allPlayers: LeaguePlayer[]) {
-  const [playerId, setPlayerId] = useState<number | null>(null)
-  const [compareId, setCompareId] = useState<number | null>(null)
+  const [playerIdValue, setPlayerId] = useState<number | null>(null)
+  const [compareIdValue, setCompareId] = useState<number | null>(null)
   const [showCompare, setShowCompare] = useState(false)
-
-  useEffect(() => {
-    if (!allPlayers.length) {
-      setPlayerId(null)
-      setCompareId(null)
-      setShowCompare(false)
-      return
+  const playerId = useMemo(() => {
+    if (!allPlayers.length) return null
+    if (playerIdValue !== null && allPlayers.some(player => player.player_id === playerIdValue)) {
+      return playerIdValue
     }
-
-    if (playerId === null || !allPlayers.some(player => player.player_id === playerId)) {
-      setPlayerId(allPlayers[0]?.player_id ?? null)
-      setCompareId(null)
-      setShowCompare(false)
-    }
-  }, [allPlayers, playerId])
+    return allPlayers[0]?.player_id ?? null
+  }, [allPlayers, playerIdValue])
+  const compareId = useMemo(() => {
+    if (!allPlayers.length || compareIdValue === null) return null
+    return allPlayers.some(player => player.player_id === compareIdValue) ? compareIdValue : null
+  }, [allPlayers, compareIdValue])
 
   return {
     playerId,
     setPlayerId,
     compareId,
     setCompareId,
-    showCompare,
+    showCompare: showCompare && compareId !== null,
     setShowCompare,
   }
 }
