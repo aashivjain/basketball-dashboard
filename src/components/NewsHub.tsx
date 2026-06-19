@@ -22,15 +22,18 @@ export default function NewsHub({ block, news }: Props) {
     [news]
   )
   const leadArticle = useMemo(() => pickLeadArticle(articles), [articles])
-  const leadImage = useMemo(() => pickLeadImage(leadArticle, articles), [leadArticle, articles])
+  const secondaryArticle = useMemo(
+    () => articles.find(article => article.id !== leadArticle?.id) ?? null,
+    [articles, leadArticle]
+  )
   const headlineList = useMemo(() => {
-    const leadId = leadArticle?.id
+    const featuredIds = new Set([leadArticle?.id, secondaryArticle?.id].filter(Boolean))
     const transactionLimit = 2
     const selected: typeof articles = []
     let transactionCount = 0
 
     for (const article of articles) {
-      if (article.id === leadId) continue
+      if (featuredIds.has(article.id)) continue
       if (article.category === 'Transactions') {
         if (transactionCount >= transactionLimit) continue
         transactionCount += 1
@@ -40,7 +43,7 @@ export default function NewsHub({ block, news }: Props) {
     }
 
     return selected
-  }, [articles, leadArticle])
+  }, [articles, leadArticle, secondaryArticle])
   const signals = useMemo(() => buildSignalItems(block), [block])
 
   return (
@@ -81,93 +84,117 @@ export default function NewsHub({ block, news }: Props) {
         </div>
 
         <div className="mt-6 grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-6">
-          <article className="app-card overflow-hidden">
-            {leadArticle ? (
-              <>
-                {leadImage ? (
-                  <div className="relative h-60 w-full overflow-hidden bg-slate-100">
-                    <img src={leadImage} alt="" className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-900/15 to-transparent" />
-                    <div className="absolute left-5 top-5 flex items-center gap-2 flex-wrap">
-                      <MetaChip>{leadArticle.category}</MetaChip>
-                      <MetaChip>{formatSource(leadArticle.source)}</MetaChip>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative flex h-60 w-full items-end overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.28),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.2),_transparent_30%),linear-gradient(135deg,#f8fafc_0%,#e2e8f0_45%,#cbd5e1_100%)] px-6 pb-6 pt-6">
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(226,232,240,0.68)_100%)]" />
-                    <div className="relative flex items-center gap-2 flex-wrap">
-                      <MetaChip>{leadArticle.category}</MetaChip>
-                      <MetaChip>{formatSource(leadArticle.source)}</MetaChip>
-                    </div>
-                  </div>
-                )}
-
-                <div className="p-6">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 font-semibold">Featured story</div>
-                  <h3 className="text-3xl leading-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
-                    <a href={leadArticle.link} target="_blank" rel="noreferrer" className="hover:text-slate-700 transition-colors">
-                      {leadArticle.title}
-                    </a>
-                  </h3>
-                  <p className="mt-4 max-w-3xl text-[15px] leading-7 text-slate-700">{leadArticle.summary}</p>
-                  <div className="mt-5 text-[12px] font-medium text-slate-500">{formatPublished(leadArticle.published_at)}</div>
-                </div>
-              </>
-            ) : (
-              <div className="p-6">
-                <h3 className="text-2xl text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>No live news loaded</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Run the news refresh script to pull the latest WNBA headlines into the dashboard.
-                </p>
-              </div>
-            )}
-          </article>
-
-          <div className="app-card p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Latest Headlines</div>
-                <div className="mt-1 text-sm text-slate-500">Fresh league movement, injuries, and key talking points.</div>
-              </div>
-              <div className="text-[11px] text-slate-400">{headlineList.length} stories</div>
-            </div>
-            <div className="mt-3 divide-y divide-slate-100">
-              {headlineList.length > 0 ? (
-                headlineList.map((article, index) => (
-                  <a
-                    key={article.id}
-                    href={article.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`ui-card-hover block rounded-2xl px-3 py-3 ${index === 0 ? 'bg-slate-50/80' : ''}`}
-                  >
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-semibold flex-wrap">
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-500">
-                        {article.category}
-                      </span>
-                      <span>{formatSource(article.source)}</span>
-                      <span className="text-slate-300">•</span>
-                      <span>{formatPublished(article.published_at)}</span>
-                    </div>
-                    <div className={`mt-1 leading-6 font-semibold text-slate-800 hover:text-slate-600 transition-colors ${index === 0 ? 'text-[17px]' : 'text-[15px]'}`}>
-                      {article.title}
-                    </div>
-                    {article.summary && (
-                      <div className="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">
-                        {article.summary}
-                      </div>
-                    )}
-                  </a>
-                ))
+          <div className="xl:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {leadArticle || secondaryArticle ? (
+                <>
+                  {leadArticle && <FeaturedNewsCard article={leadArticle} label="Featured story" />}
+                  {secondaryArticle && <FeaturedNewsCard article={secondaryArticle} label="Second headline" compact />}
+                </>
               ) : (
-                <div className="py-6 text-sm text-slate-500">No headlines available yet.</div>
+                <article className="app-card overflow-hidden xl:col-span-2">
+                  <div className="p-6">
+                    <h3 className="text-2xl text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>No live news loaded</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      Run the news refresh script to pull the latest WNBA headlines into the dashboard.
+                    </p>
+                  </div>
+                </article>
               )}
+            </div>
+
+            <div className="app-card p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400 font-semibold">Recent Headlines</div>
+                  <div className="mt-1 text-sm text-slate-500">Fresh league movement, injuries, and key talking points.</div>
+                </div>
+                <div className="text-[11px] text-slate-400">{headlineList.length} stories</div>
+              </div>
+
+              <div className="mt-3 divide-y divide-slate-100">
+                {headlineList.length > 0 ? (
+                  headlineList.map((article, index) => (
+                    <a
+                      key={article.id}
+                      href={article.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`ui-card-hover block rounded-2xl px-3 py-3 ${index === 0 ? 'bg-slate-50/80' : ''}`}
+                    >
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 font-semibold flex-wrap">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-500">
+                          {article.category}
+                        </span>
+                        <span>{formatSource(article.source)}</span>
+                        <span className="text-slate-300">•</span>
+                        <span>{formatPublished(article.published_at)}</span>
+                      </div>
+                      <div className={`mt-1 leading-6 font-semibold text-slate-800 hover:text-slate-600 transition-colors ${index === 0 ? 'text-[17px]' : 'text-[15px]'}`}>
+                        {article.title}
+                      </div>
+                      {article.summary && (
+                        <div className="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500">
+                          {article.summary}
+                        </div>
+                      )}
+                    </a>
+                  ))
+                ) : (
+                  <div className="py-6 text-sm text-slate-500">No headlines available yet.</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
+  )
+}
+
+function FeaturedNewsCard({
+  article,
+  label,
+  compact = false,
+}: {
+  article: NewsData['articles'][number]
+  label: string
+  compact?: boolean
+}) {
+  const articleImage = article.image_url
+
+  return (
+    <article className="app-card overflow-hidden">
+      {articleImage ? (
+        <div className={`relative w-full overflow-hidden bg-slate-100 ${compact ? 'h-52' : 'h-60'}`}>
+          <img src={articleImage} alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-900/15 to-transparent" />
+          <div className="absolute left-5 top-5 flex items-center gap-2 flex-wrap">
+            <MetaChip>{article.category}</MetaChip>
+            <MetaChip>{formatSource(article.source)}</MetaChip>
+          </div>
+        </div>
+      ) : (
+        <div className={`relative flex w-full items-end overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.28),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.2),_transparent_30%),linear-gradient(135deg,#f8fafc_0%,#e2e8f0_45%,#cbd5e1_100%)] px-6 pb-6 pt-6 ${compact ? 'h-52' : 'h-60'}`}>
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(226,232,240,0.68)_100%)]" />
+          <div className="relative flex items-center gap-2 flex-wrap">
+            <MetaChip>{article.category}</MetaChip>
+            <MetaChip>{formatSource(article.source)}</MetaChip>
+          </div>
+        </div>
+      )}
+
+      <div className="p-6">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 font-semibold">{label}</div>
+        <h3 className={`${compact ? 'text-2xl' : 'text-3xl'} leading-tight text-slate-900`} style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
+          <a href={article.link} target="_blank" rel="noreferrer" className="hover:text-slate-700 transition-colors">
+            {article.title}
+          </a>
+        </h3>
+        <p className={`mt-4 text-slate-700 ${compact ? 'text-sm leading-6' : 'text-[15px] leading-7'}`}>{article.summary}</p>
+        <div className="mt-5 text-[12px] font-medium text-slate-500">{formatPublished(article.published_at)}</div>
+      </div>
+    </article>
   )
 }
 
@@ -220,11 +247,6 @@ function formatSource(source: string) {
   const normalized = source.trim()
   if (!normalized || normalized.toLowerCase() === 'news.google.com') return 'WNBA News'
   return normalized
-}
-
-function pickLeadImage(leadArticle: NewsData['articles'][number] | null, articles: NewsData['articles']) {
-  if (leadArticle?.image_url) return leadArticle.image_url
-  return articles.find(article => article.id !== leadArticle?.id && article.image_url)?.image_url
 }
 
 function getArticleTime(value: string) {
