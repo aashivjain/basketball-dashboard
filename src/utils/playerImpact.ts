@@ -117,6 +117,8 @@ export function buildPlayerImpactIndex(players: LeaguePlayer[]): PlayerImpactRes
     dreb: weightedAverage(rawFeatures.map(item => ({ value: item.drebPer36, weight: item.confidence }))),
     poss: weightedAverage(rawFeatures.map(item => ({ value: item.possPer36, weight: item.confidence }))),
   }
+  const leagueMinutesPerGame = weightedAverage(rawFeatures.map(item => ({ value: item.player.min, weight: item.confidence })))
+  const leagueTotalMinutes = weightedAverage(rawFeatures.map(item => ({ value: item.player.gp * item.player.min, weight: item.confidence })))
 
   const componentRows = rawFeatures.map(item => {
     const shrink = (value: number, leagueValue: number) => leagueValue + (value - leagueValue) * item.confidence
@@ -133,6 +135,9 @@ export function buildPlayerImpactIndex(players: LeaguePlayer[]): PlayerImpactRes
     const efg = leagueEfg + (item.efg - leagueEfg) * item.confidence
     const astTov = leagueAstTov + (item.astTov - leagueAstTov) * item.confidence
     const plusMinus = leaguePlusMinus + (item.player.plus_minus - leaguePlusMinus) * item.confidence
+    const minutesPerGame = leagueMinutesPerGame + (item.player.min - leagueMinutesPerGame) * item.confidence
+    const totalMinutes = leagueTotalMinutes + ((item.player.gp * item.player.min) - leagueTotalMinutes) * item.confidence
+    const minuteLoadValue = Math.max(0, minutesPerGame - leagueMinutesPerGame) * 0.28 + Math.max(0, totalMinutes - leagueTotalMinutes) / 180
 
     const offenseValue =
       ptsPer36 * (0.62 + ts * 0.55) +
@@ -140,7 +145,8 @@ export function buildPlayerImpactIndex(players: LeaguePlayer[]): PlayerImpactRes
       possPer36 * 0.18 +
       (ts - leagueTs) * 34 +
       (efg - leagueEfg) * 22 +
-      (astTov - leagueAstTov) * 2.6
+      (astTov - leagueAstTov) * 2.6 +
+      minuteLoadValue * 0.55
 
     const defenseValue =
       stlPer36 * 2.6 +
@@ -148,7 +154,8 @@ export function buildPlayerImpactIndex(players: LeaguePlayer[]): PlayerImpactRes
       drebPer36 * 0.55 +
       orebPer36 * 0.35 +
       rebPer36 * 0.15 +
-      plusMinus * 0.95
+      plusMinus * 0.95 +
+      minuteLoadValue * 0.45
 
     const totalValue = offenseValue * 0.64 + defenseValue * 0.36
 
