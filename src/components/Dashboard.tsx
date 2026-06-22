@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import type { SeasonData, LeaguePlayer } from '../types'
 import { getReadableTeamAccent, getTeamColors } from '../utils/teamColors'
 import PlayerCard from './PlayerCard'
@@ -17,6 +17,7 @@ import NewsHub from './NewsHub'
 import { buildPlayerImpactIndex } from '../utils/playerImpact'
 import { loadDashboardData } from '../utils/dataValidation'
 import { useDashboardState, usePlayerSelectionState } from '../hooks/useDashboardState'
+import { usePlayerRouteState } from '../hooks/usePlayerRouteState'
 import {
   getAvailableSeasons,
   getGrowthData,
@@ -51,7 +52,6 @@ export default function Dashboard() {
     setPlayerId,
     compareId,
     setCompareId,
-    showCompare,
     setShowCompare,
   } = usePlayerSelectionState(allPlayers)
   const rosterById = useMemo(() => getRosterById(seasonData), [seasonData])
@@ -59,30 +59,27 @@ export default function Dashboard() {
 
   const impactIndex = useMemo(() => buildPlayerImpactIndex(allPlayers), [allPlayers])
 
-  const player = useMemo(() => allPlayers.find(p => p.player_id === playerId) ?? null, [allPlayers, playerId])
-  const games = useMemo(() => getPlayerGames(block, playerId), [block, playerId])
-  const shots = useMemo(() => getPlayerShots(block, playerId), [block, playerId])
+  const {
+    section,
+    playerTab,
+    selectedPlayerId,
+    setSelectedPlayerId,
+    buildPlayerRoute,
+  } = usePlayerRouteState({
+    allPlayers,
+    fallbackPlayerId: playerId,
+    onFallbackSelect: setPlayerId,
+  })
+  const player = useMemo(() => allPlayers.find(p => p.player_id === selectedPlayerId) ?? null, [allPlayers, selectedPlayerId])
+  const games = useMemo(() => getPlayerGames(block, selectedPlayerId), [block, selectedPlayerId])
+  const shots = useMemo(() => getPlayerShots(block, selectedPlayerId), [block, selectedPlayerId])
   const leagueAvg = block?.league_averages ?? null
   const comparePlayer: LeaguePlayer | null = useMemo(
     () => allPlayers.find(p => p.player_id === compareId) ?? null,
     [allPlayers, compareId]
   )
 
-  const growthData = useMemo(() => getGrowthData(data, availableSeasons, playerId), [data, availableSeasons, playerId])
-  const location = useLocation()
-  const pathname = location.pathname
-  const section: 'players' | 'teams' | 'news' = pathname.startsWith('/teams')
-    ? 'teams'
-    : pathname.startsWith('/news')
-      ? 'news'
-      : 'players'
-  const playerTab: 'overview' | 'compare' | 'rankings' | 'builder' = pathname === '/players/compare'
-    ? 'compare'
-    : pathname === '/players/rankings'
-      ? 'rankings'
-      : pathname === '/players/builder'
-        ? 'builder'
-        : 'overview'
+  const growthData = useMemo(() => getGrowthData(data, availableSeasons, selectedPlayerId), [data, availableSeasons, selectedPlayerId])
 
   const teamColor = player ? getTeamColors(player.team) : null
   const playerAccent = player ? getReadableTeamAccent(player.team) : '#334155'
@@ -187,7 +184,7 @@ export default function Dashboard() {
               <>
                 <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
                 <NavLink
-                  to="/players"
+                  to={buildPlayerRoute('overview')}
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'overview' ? '#1e293b' : 'transparent', color: playerTab === 'overview' ? '#fff' : '#64748b', fontWeight: playerTab === 'overview' ? 600 : 500 }}
                 >Overview</NavLink>
@@ -197,7 +194,7 @@ export default function Dashboard() {
                   style={{ background: playerTab === 'compare' ? '#1e293b' : 'transparent', color: playerTab === 'compare' ? '#fff' : '#64748b', fontWeight: playerTab === 'compare' ? 600 : 500 }}
                 >Compare</NavLink>
                 <NavLink
-                  to="/players/rankings"
+                  to={buildPlayerRoute('rankings')}
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
                   style={{ background: playerTab === 'rankings' ? '#1e293b' : 'transparent', color: playerTab === 'rankings' ? '#fff' : '#64748b', fontWeight: playerTab === 'rankings' ? 600 : 500 }}
                 >Rankings</NavLink>
@@ -208,10 +205,10 @@ export default function Dashboard() {
                 >Builder</NavLink>
                 </nav>
 
-                {isPlayersOverview && (
+                {(isPlayersOverview || isPlayersRankings) && (
                   <select
-                    value={playerId ?? ''}
-                    onChange={e => { setPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
+                    value={selectedPlayerId ?? ''}
+                    onChange={e => { setSelectedPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
                     aria-label="Selected player"
                     className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700"
                     style={{ minWidth: '220px', maxWidth: '320px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
@@ -264,11 +261,11 @@ export default function Dashboard() {
         ) : playerTab === 'compare' ? (
           <CompareView allPlayers={allPlayers} playersByTeam={playersByTeam} season={season} />
         ) : playerTab === 'rankings' ? (
-          <RankingsView allPlayers={allPlayers} season={season} impactIndex={impactIndex} />
+          <RankingsView allPlayers={allPlayers} season={season} impactIndex={impactIndex} selectedPlayerId={selectedPlayerId} buildOverviewHref={buildPlayerRoute} />
         ) : playerTab === 'builder' ? (
           <BuildPlayerView key={`${season}-${seasonType}`} allPlayers={allPlayers} season={season} seasonType={seasonType} />
         ) : !player || !leagueAvg ? (
-          <LandingGrid playersByTeam={playersByTeam} onSelect={setPlayerId} />
+          <LandingGrid playersByTeam={playersByTeam} onSelect={setSelectedPlayerId} />
         ) : (
           <div className="space-y-8">
             <div className="app-panel px-6 py-6 md:px-7">
@@ -321,37 +318,14 @@ export default function Dashboard() {
 
             {games.length > 0 && <GameLogTable games={games} teamColor={teamColor!} />}
 
-            {/* Compare section at end of profile */}
             <div className="pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-4 flex-wrap">
-                <button
-                  onClick={() => setShowCompare(!showCompare)}
-                  className="text-sm px-5 py-2.5 rounded-full transition-all font-medium"
-                  style={{ border: `1.5px solid ${playerAccent}35`, color: playerAccent, background: showCompare ? `${playerAccent}10` : 'white' }}
-                >{showCompare ? 'Hide comparison' : `Compare ${player.name.split(' ').pop()} with another player`}</button>
-                {showCompare && (
-                  <select
-                    value={compareId ?? ''}
-                    onChange={e => setCompareId(Number(e.target.value))}
-                    className="rounded-full px-4 py-2 text-sm cursor-pointer focus:outline-none border border-slate-200 bg-white text-slate-700"
-                  >
-                    <option value="" disabled>Pick any WNBA player</option>
-                    {playersByTeam.map(([team, players]) => (
-                      <optgroup key={team} label={team}>
-                        {players.filter(p => p.player_id !== playerId).map(p => (
-                          <option key={p.player_id} value={p.player_id}>{p.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {showCompare && comparePlayer && player && (
-                <div className="mt-6">
-                  <PlayerComparison playerA={player} playerB={comparePlayer} nameA={player.name} nameB={comparePlayer.name} teamColorA={teamColor!} teamColorB={getTeamColors(comparePlayer.team)} />
-                </div>
-              )}
+              <NavLink
+                to={selectedPlayerId ? `/players/compare?playerA=${selectedPlayerId}` : '/players/compare'}
+                className="inline-flex rounded-full px-5 py-2.5 text-sm font-medium transition-all"
+                style={{ border: `1.5px solid ${playerAccent}35`, color: playerAccent, background: 'white' }}
+              >
+                {`Compare ${player.name.split(' ').pop()} with another player`}
+              </NavLink>
             </div>
           </div>
         )}
@@ -364,12 +338,24 @@ function RankingsView({
   allPlayers,
   season,
   impactIndex,
+  selectedPlayerId,
+  buildOverviewHref,
 }: {
   allPlayers: LeaguePlayer[]
   season: string
   impactIndex: ReturnType<typeof buildPlayerImpactIndex>
+  selectedPlayerId: number | null
+  buildOverviewHref: (tab: 'overview' | 'rankings', playerIdOverride?: number | null) => string
 }) {
   const [metric, setMetric] = useState<'impact' | 'pts' | 'ast' | 'reb' | 'ts' | 'fg3'>('impact')
+  const navigate = useNavigate()
+  const rankingMinMinutesPerGame = 5
+  const trueShootingMinAttempts = 3.5
+  const threePointMinAttempts = 1.25
+  const impactMinGames = useMemo(() => {
+    const maxGamesPlayed = allPlayers.reduce((maxGames, player) => Math.max(maxGames, player.gp), 0)
+    return Math.ceil(maxGamesPlayed / 4)
+  }, [allPlayers])
 
   const metricConfig = useMemo(() => {
     const getTs = (player: LeaguePlayer) => (
@@ -382,21 +368,32 @@ function RankingsView({
       impact: {
         label: 'Player Impact Index',
         title: 'Most Impact',
-        averageLabel: `League average ${impactIndex.averageScore.toFixed(0)}`,
+        averageLabel: `Min ${impactMinGames} GP`,
         valueLabel: 'Impact',
-        description: 'Overall two-way impact using the dashboard’s season-relative index.',
-        qualify: (player: LeaguePlayer) => player.gp > 0 && Boolean(impactIndex.byPlayerId[player.player_id]),
+        description: `Overall two-way impact using the dashboard’s season-relative index, limited to players with at least ${impactMinGames} games and ${rankingMinMinutesPerGame}+ MPG.`,
+        qualify: (player: LeaguePlayer) => player.gp >= impactMinGames && player.min >= rankingMinMinutesPerGame && Boolean(impactIndex.byPlayerId[player.player_id]),
+        getQualificationFailure: (player: LeaguePlayer) => {
+          if (player.gp < impactMinGames) return `Needs ${impactMinGames} games played. Currently at ${player.gp}.`
+          if (player.min < rankingMinMinutesPerGame) return `Needs at least ${rankingMinMinutesPerGame.toFixed(1)} MPG. Currently at ${player.min.toFixed(1)} MPG.`
+          if (!impactIndex.byPlayerId[player.player_id]) return 'No impact score is available for this player in the current season block.'
+          return null
+        },
         value: (player: LeaguePlayer) => impactIndex.byPlayerId[player.player_id]?.score ?? 0,
         format: (value: number) => value.toFixed(1),
-        detail: (player: LeaguePlayer) => impactIndex.byPlayerId[player.player_id]?.summary ?? 'Season impact snapshot.',
+        detail: (player: LeaguePlayer) => `${impactIndex.byPlayerId[player.player_id]?.summary ?? 'Season impact snapshot.'} ${player.gp} GP • ${player.min.toFixed(1)} MPG.`,
       },
       pts: {
         label: 'Points',
         title: 'Top Scorers',
         averageLabel: 'Per game',
         valueLabel: 'PTS',
-        description: 'Highest scoring averages for the selected season.',
-        qualify: (player: LeaguePlayer) => player.gp >= 5,
+        description: `Highest scoring averages for the selected season among players with at least ${impactMinGames} games and ${rankingMinMinutesPerGame}+ MPG.`,
+        qualify: (player: LeaguePlayer) => player.gp >= impactMinGames && player.min >= rankingMinMinutesPerGame,
+        getQualificationFailure: (player: LeaguePlayer) => {
+          if (player.gp < impactMinGames) return `Needs ${impactMinGames} games played. Currently at ${player.gp}.`
+          if (player.min < rankingMinMinutesPerGame) return `Needs at least ${rankingMinMinutesPerGame.toFixed(1)} MPG. Currently at ${player.min.toFixed(1)} MPG.`
+          return null
+        },
         value: (player: LeaguePlayer) => player.pts,
         format: (value: number) => value.toFixed(1),
         detail: (player: LeaguePlayer) => `${player.fgm.toFixed(1)} FGM on ${player.fga.toFixed(1)} FGA per game.`,
@@ -406,8 +403,13 @@ function RankingsView({
         title: 'Top Playmakers',
         averageLabel: 'Per game',
         valueLabel: 'AST',
-        description: 'Best assist creators this season.',
-        qualify: (player: LeaguePlayer) => player.gp >= 5,
+        description: `Best assist creators this season among players with at least ${impactMinGames} games and ${rankingMinMinutesPerGame}+ MPG.`,
+        qualify: (player: LeaguePlayer) => player.gp >= impactMinGames && player.min >= rankingMinMinutesPerGame,
+        getQualificationFailure: (player: LeaguePlayer) => {
+          if (player.gp < impactMinGames) return `Needs ${impactMinGames} games played. Currently at ${player.gp}.`
+          if (player.min < rankingMinMinutesPerGame) return `Needs at least ${rankingMinMinutesPerGame.toFixed(1)} MPG. Currently at ${player.min.toFixed(1)} MPG.`
+          return null
+        },
         value: (player: LeaguePlayer) => player.ast,
         format: (value: number) => value.toFixed(1),
         detail: (player: LeaguePlayer) => `${player.tov.toFixed(1)} TOV per game with ${player.min.toFixed(1)} MPG.`,
@@ -417,8 +419,13 @@ function RankingsView({
         title: 'Top Rebounders',
         averageLabel: 'Per game',
         valueLabel: 'REB',
-        description: 'Best glass work across offensive and defensive boards.',
-        qualify: (player: LeaguePlayer) => player.gp >= 5,
+        description: `Best glass work across offensive and defensive boards among players with at least ${impactMinGames} games and ${rankingMinMinutesPerGame}+ MPG.`,
+        qualify: (player: LeaguePlayer) => player.gp >= impactMinGames && player.min >= rankingMinMinutesPerGame,
+        getQualificationFailure: (player: LeaguePlayer) => {
+          if (player.gp < impactMinGames) return `Needs ${impactMinGames} games played. Currently at ${player.gp}.`
+          if (player.min < rankingMinMinutesPerGame) return `Needs at least ${rankingMinMinutesPerGame.toFixed(1)} MPG. Currently at ${player.min.toFixed(1)} MPG.`
+          return null
+        },
         value: (player: LeaguePlayer) => player.reb,
         format: (value: number) => value.toFixed(1),
         detail: (player: LeaguePlayer) => `${player.oreb.toFixed(1)} OREB • ${player.dreb.toFixed(1)} DREB per game.`,
@@ -428,8 +435,15 @@ function RankingsView({
         title: 'Most Efficient Scorers',
         averageLabel: 'Qualified scorers',
         valueLabel: 'TS%',
-        description: 'Scoring efficiency using field goals and free throws.',
-        qualify: (player: LeaguePlayer) => player.gp >= 5 && (player.fga + 0.44 * player.fta) >= 6,
+        description: `Scoring efficiency using field goals and free throws among players with at least ${impactMinGames} games, ${rankingMinMinutesPerGame}+ MPG, and a real scoring sample.`,
+        qualify: (player: LeaguePlayer) => player.gp >= impactMinGames && player.min >= rankingMinMinutesPerGame && (player.fga + 0.44 * player.fta) >= trueShootingMinAttempts,
+        getQualificationFailure: (player: LeaguePlayer) => {
+          const trueShootingAttempts = player.fga + 0.44 * player.fta
+          if (player.gp < impactMinGames) return `Needs ${impactMinGames} games played. Currently at ${player.gp}.`
+          if (player.min < rankingMinMinutesPerGame) return `Needs at least ${rankingMinMinutesPerGame.toFixed(1)} MPG. Currently at ${player.min.toFixed(1)} MPG.`
+          if (trueShootingAttempts < trueShootingMinAttempts) return `Needs at least ${trueShootingMinAttempts.toFixed(1)} true-shooting attempts per game (FGA + 0.44 × FTA). Currently at ${trueShootingAttempts.toFixed(1)}.`
+          return null
+        },
         value: (player: LeaguePlayer) => getTs(player) * 100,
         format: (value: number) => `${value.toFixed(1)}%`,
         detail: (player: LeaguePlayer) => `${player.pts.toFixed(1)} PTS on ${player.fga.toFixed(1)} FGA and ${player.fta.toFixed(1)} FTA.`,
@@ -439,18 +453,24 @@ function RankingsView({
         title: 'Best 3-Point Shooting',
         averageLabel: 'Qualified shooters',
         valueLabel: '3PT%',
-        description: 'Best three-point accuracy with a real sample.',
-        qualify: (player: LeaguePlayer) => player.gp >= 5 && player.fg3a >= 2,
+        description: `Best three-point accuracy with a real sample among players with at least ${impactMinGames} games, ${rankingMinMinutesPerGame}+ MPG, and meaningful 3-point volume.`,
+        qualify: (player: LeaguePlayer) => player.gp >= impactMinGames && player.min >= rankingMinMinutesPerGame && player.fg3a >= threePointMinAttempts,
+        getQualificationFailure: (player: LeaguePlayer) => {
+          if (player.gp < impactMinGames) return `Needs ${impactMinGames} games played. Currently at ${player.gp}.`
+          if (player.min < rankingMinMinutesPerGame) return `Needs at least ${rankingMinMinutesPerGame.toFixed(1)} MPG. Currently at ${player.min.toFixed(1)} MPG.`
+          if (player.fg3a < threePointMinAttempts) return `Needs at least ${threePointMinAttempts.toFixed(1)} 3-point attempts per game. Currently at ${player.fg3a.toFixed(1)}.`
+          return null
+        },
         value: (player: LeaguePlayer) => player.fg3_pct * 100,
         format: (value: number) => `${value.toFixed(1)}%`,
         detail: (player: LeaguePlayer) => `${player.fg3m.toFixed(1)} makes on ${player.fg3a.toFixed(1)} attempts per game.`,
       },
     } as const
-  }, [impactIndex])
+  }, [impactIndex, impactMinGames, rankingMinMinutesPerGame, threePointMinAttempts, trueShootingMinAttempts])
 
   const activeMetric = metricConfig[metric]
 
-  const rankedPlayers = useMemo(() => {
+  const fullRankedPlayers = useMemo(() => {
     return allPlayers
       .filter(activeMetric.qualify)
       .map(player => ({
@@ -459,10 +479,42 @@ function RankingsView({
         impact: impactIndex.byPlayerId[player.player_id] ?? null,
       }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 50)
   }, [activeMetric, allPlayers, impactIndex])
+  const rankedPlayers = fullRankedPlayers.slice(0, 50)
 
-  const leader = rankedPlayers[0] ?? null
+  const leader = fullRankedPlayers[0] ?? null
+  const selectedPlayer = selectedPlayerId !== null
+    ? allPlayers.find(player => player.player_id === selectedPlayerId) ?? null
+    : null
+  const selectedRankingEntry = fullRankedPlayers.find(entry => entry.player.player_id === selectedPlayerId) ?? null
+  const selectedRank = selectedRankingEntry
+    ? fullRankedPlayers.findIndex(entry => entry.player.player_id === selectedRankingEntry.player.player_id) + 1
+    : null
+  const selectedQualificationFailure = selectedPlayer
+    ? activeMetric.getQualificationFailure(selectedPlayer)
+    : null
+  const featuredPlayer = selectedPlayer
+    ? {
+        player: selectedPlayer,
+        value: activeMetric.value(selectedPlayer),
+        qualified: activeMetric.qualify(selectedPlayer),
+      }
+    : leader
+      ? {
+          player: leader.player,
+          value: leader.value,
+          qualified: true,
+        }
+      : null
+
+  const openPlayerProfile = (playerId: number) => {
+    navigate(buildOverviewHref('overview', playerId))
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -489,29 +541,45 @@ function RankingsView({
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.9fr] gap-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
           <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">{activeMetric.title}</div>
-          {leader ? (
+          {featuredPlayer ? (
             <div className="mt-4 space-y-4">
               <div>
-                <div className="text-sm font-semibold" style={{ color: getTeamColors(leader.player.team).primary }}>{leader.player.team}</div>
-                <h3 className="text-3xl tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>{leader.player.name}</h3>
+                <div className="text-sm font-semibold" style={{ color: getTeamColors(featuredPlayer.player.team).primary }}>{featuredPlayer.player.team}</div>
+                <h3 className="text-3xl tracking-tight text-slate-900" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>{featuredPlayer.player.name}</h3>
               </div>
 
-              <div className="rounded-2xl p-4" style={{ background: getTeamColors(leader.player.team).bg }}>
+              <div className="rounded-2xl p-4" style={{ background: getTeamColors(featuredPlayer.player.team).bg }}>
                 <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold">{activeMetric.label}</div>
                 <div className="mt-2 flex items-end gap-3">
-                  <div className="text-4xl font-semibold text-slate-900">{activeMetric.format(leader.value)}</div>
+                  <div className="text-4xl font-semibold text-slate-900">{activeMetric.format(featuredPlayer.value)}</div>
                   <div className="pb-1 text-sm text-slate-500">{activeMetric.averageLabel}</div>
                 </div>
-                <p className="mt-3 text-sm text-slate-600">{activeMetric.detail(leader.player)}</p>
+                <p className="mt-3 text-sm text-slate-600">{activeMetric.detail(featuredPlayer.player)}</p>
+                {!featuredPlayer.qualified && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    {selectedQualificationFailure ?? `This player is not currently qualified for the ${activeMetric.label} leaderboard.`}
+                  </p>
+                )}
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                  <span className="uppercase tracking-[0.14em] text-slate-400">Rank</span>
+                  <span className="text-sm text-slate-900">{selectedRank ? `#${selectedRank}` : 'Unranked'}</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3 text-center">
-                <MetricChip label="PTS" value={leader.player.pts.toFixed(1)} />
-                <MetricChip label="REB" value={leader.player.reb.toFixed(1)} />
-                <MetricChip label="AST" value={leader.player.ast.toFixed(1)} />
+                <MetricChip label="PTS" value={featuredPlayer.player.pts.toFixed(1)} />
+                <MetricChip label="REB" value={featuredPlayer.player.reb.toFixed(1)} />
+                <MetricChip label="AST" value={featuredPlayer.player.ast.toFixed(1)} />
               </div>
 
               <p className="text-xs text-slate-400">{activeMetric.description}</p>
+              <button
+                type="button"
+                onClick={() => openPlayerProfile(featuredPlayer.player.player_id)}
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:text-slate-900"
+              >
+                View full player profile
+              </button>
 
               {metric === 'impact' && (
                 <details className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -571,14 +639,16 @@ function RankingsView({
             {rankedPlayers.map((entry, index) => {
               const tc = getTeamColors(entry.player.team)
               return (
-                <div
+                <button
+                  type="button"
                   key={entry.player.player_id}
-                  className="grid grid-cols-[38px_minmax(0,1.35fr)_minmax(0,0.8fr)_78px] items-center gap-3 rounded-2xl border border-slate-100 px-3 py-3"
-                  style={{ background: index < 3 ? tc.bg : 'white' }}
+                  onClick={() => openPlayerProfile(entry.player.player_id)}
+                  className="group grid w-full grid-cols-[38px_minmax(0,1.35fr)_minmax(0,0.8fr)_78px] items-center gap-3 rounded-2xl border border-slate-100 px-3 py-3 text-left transition-all hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.45)]"
+                  style={{ background: entry.player.player_id === selectedPlayerId || index < 3 ? tc.bg : 'white' }}
                 >
                   <div className="text-lg font-semibold text-slate-400">{index + 1}</div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900">{entry.player.name}</div>
+                    <div className="truncate text-sm font-semibold text-slate-900 transition-all group-hover:text-slate-700 group-hover:underline group-hover:decoration-slate-400 group-hover:underline-offset-4">{entry.player.name}</div>
                     <div className="truncate text-xs text-slate-400">{entry.player.team} &middot; {entry.player.gp} GP &middot; {entry.player.min.toFixed(1)} MPG</div>
                   </div>
                   <div className="min-w-0 text-xs text-slate-500">
@@ -589,7 +659,7 @@ function RankingsView({
                     <div className="text-xl font-semibold" style={{ color: tc.primary }}>{activeMetric.format(entry.value)}</div>
                     <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{activeMetric.valueLabel}</div>
                   </div>
-                </div>
+                </button>
               )
             })}
           </div>
@@ -1097,8 +1167,13 @@ function LandingGrid({ playersByTeam, onSelect }: { playersByTeam: [string, Leag
 }
 
 function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: LeaguePlayer[]; playersByTeam: [string, LeaguePlayer[]][]; season: string }) {
-  const [idA, setIdA] = useState<number | null>(null)
-  const [idB, setIdB] = useState<number | null>(null)
+  const [searchParams] = useSearchParams()
+  const playerAParam = Number(searchParams.get('playerA'))
+  const playerBParam = Number(searchParams.get('playerB'))
+  const initialPlayerA = Number.isFinite(playerAParam) && playerAParam > 0 ? playerAParam : null
+  const initialPlayerB = Number.isFinite(playerBParam) && playerBParam > 0 ? playerBParam : null
+  const [idA, setIdA] = useState<number | null>(initialPlayerA)
+  const [idB, setIdB] = useState<number | null>(initialPlayerB)
 
   const playerA = allPlayers.find(p => p.player_id === idA) ?? null
   const playerB = allPlayers.find(p => p.player_id === idB) ?? null
