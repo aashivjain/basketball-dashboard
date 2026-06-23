@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom'
 import type { SeasonData, LeaguePlayer } from '../types'
@@ -32,7 +32,25 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
+const teamSearchAliases: Record<string, string[]> = {
+  ATL: ['atl', 'atlanta', 'dream'],
+  CHI: ['chi', 'chicago', 'sky'],
+  CON: ['con', 'connecticut', 'sun'],
+  DAL: ['dal', 'dallas', 'wings'],
+  GS: ['gs', 'golden state', 'goldenstate', 'valkyries'],
+  IND: ['ind', 'indiana', 'fever'],
+  LAS: ['las', 'los angeles', 'losangeles', 'sparks'],
+  LVA: ['lva', 'las vegas', 'lasvegas', 'vegas', 'aces'],
+  MIN: ['min', 'minnesota', 'lynx'],
+  NYL: ['nyl', 'new york', 'newyork', 'liberty', 'ny'],
+  PHX: ['phx', 'phoenix', 'mercury'],
+  SEA: ['sea', 'seattle', 'storm'],
+  UNI: ['uni', 'unrivaled'],
+  WAS: ['was', 'washington', 'mystics', 'dc'],
+}
+
 export default function Dashboard() {
+  const navigate = useNavigate()
   const { data, issues: dataIssues } = loadDashboardData()
   const availableSeasons = useMemo(() => getAvailableSeasons(data), [data])
   const {
@@ -112,7 +130,13 @@ export default function Dashboard() {
             : `${season} player profiles with shot maps, trends, and advanced context.`
 
   const positionAvg = useMemo(() => getPositionAverage(player, allPlayers, rosterById), [player, allPlayers, rosterById])
-
+  const searchableTeams = useMemo(
+    () => playersByTeam.map(([team]) => ({
+      team,
+      aliases: teamSearchAliases[team] ?? [team.toLowerCase()],
+    })),
+    [playersByTeam]
+  )
   return (
     <div className="ui-shell min-h-screen transition-colors duration-500" style={{ background: isPlayersOverview && player && teamColor ? `linear-gradient(180deg, ${teamColor.bg} 0%, #edf2f7 28%)` : undefined }}>
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-[rgba(248,250,252,0.90)] backdrop-blur-xl">
@@ -145,6 +169,30 @@ export default function Dashboard() {
                 style={{ background: section === 'news' ? '#1e293b' : 'transparent', color: section === 'news' ? '#fff' : '#64748b', fontWeight: 600 }}
               >News</NavLink>
             </div>
+
+            <QuickSearch
+              allPlayers={allPlayers}
+              teams={searchableTeams}
+              onSelectPlayer={(playerId) => {
+                setSelectedPlayerId(playerId)
+                setCompareId(null)
+                setShowCompare(false)
+                navigate(buildPlayerRoute('overview', playerId))
+                if (typeof window !== 'undefined') {
+                  window.requestAnimationFrame(() => {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+                  })
+                }
+              }}
+              onSelectTeam={(team) => {
+                navigate(`/teams?team=${encodeURIComponent(team)}`)
+                if (typeof window !== 'undefined') {
+                  window.requestAnimationFrame(() => {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+                  })
+                }
+              }}
+            />
           </div>
 
           {(section === 'players' || section === 'teams') && (
@@ -330,6 +378,247 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+type QuickSearchTeamOption = {
+  team: string
+  aliases: string[]
+}
+
+function QuickSearch({
+  allPlayers,
+  teams,
+  onSelectPlayer,
+  onSelectTeam,
+}: {
+  allPlayers: LeaguePlayer[]
+  teams: QuickSearchTeamOption[]
+  onSelectPlayer: (playerId: number) => void
+  onSelectTeam: (team: string) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [])
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const hasTypedQuery = normalizedQuery.length > 0
+  const playerMatches = useMemo(() => {
+    if (!hasTypedQuery) return []
+
+    return allPlayers
+      .filter(player => {
+        const name = player.name.toLowerCase()
+        const team = player.team.toLowerCase()
+        return name.includes(normalizedQuery) || team.includes(normalizedQuery)
+      })
+      .sort((a, b) => {
+        const aStarts = a.name.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
+        const bStarts = b.name.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
+        if (aStarts !== bStarts) return bStarts - aStarts
+        return a.name.localeCompare(b.name)
+      })
+      .slice(0, 8)
+  }, [allPlayers, hasTypedQuery, normalizedQuery])
+
+  const teamMatches = useMemo(() => {
+    if (!hasTypedQuery) return []
+
+    return teams
+      .filter(teamOption => {
+        const teamLabel = teamOption.team.toLowerCase()
+        return teamLabel.includes(normalizedQuery)
+          || teamOption.aliases.some(alias => alias.includes(normalizedQuery))
+      })
+      .sort((a, b) => {
+        const aStarts = a.aliases.some(alias => alias.startsWith(normalizedQuery)) || a.team.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
+        const bStarts = b.aliases.some(alias => alias.startsWith(normalizedQuery)) || b.team.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
+        if (aStarts !== bStarts) return bStarts - aStarts
+        return a.team.localeCompare(b.team)
+      })
+      .slice(0, 6)
+  }, [hasTypedQuery, normalizedQuery, teams])
+
+  const items = useMemo(() => ([
+    ...teamMatches.map(option => ({ key: `team-${option.team}`, type: 'team' as const, option })),
+    ...playerMatches.map(option => ({ key: `player-${option.player_id}`, type: 'player' as const, option })),
+  ]), [playerMatches, teamMatches])
+  const hasResults = items.length > 0
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [normalizedQuery, isOpen])
+
+  const handlePlayerSelect = (playerId: number) => {
+    setQuery('')
+    setIsOpen(false)
+    setActiveIndex(0)
+    onSelectPlayer(playerId)
+  }
+
+  const handleTeamSelect = (team: string) => {
+    setQuery('')
+    setIsOpen(false)
+    setActiveIndex(0)
+    onSelectTeam(team)
+  }
+
+  return (
+    <div ref={containerRef} className="relative min-w-[280px] flex-1 max-w-lg">
+      <div className="flex items-center gap-3 rounded-full border border-slate-200/90 bg-white/95 px-4 py-2.5 shadow-sm transition focus-within:border-slate-300 focus-within:shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)]">
+        <span className="text-slate-400" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </span>
+        <input
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={(event) => {
+            if (!isOpen && (event.key === 'ArrowDown' || event.key === 'Enter')) {
+              setIsOpen(true)
+              return
+            }
+
+            if (!items.length) {
+              if (event.key === 'Escape') setIsOpen(false)
+              return
+            }
+
+            if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              setActiveIndex(current => (current + 1) % items.length)
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault()
+              setActiveIndex(current => (current - 1 + items.length) % items.length)
+            } else if (event.key === 'Enter') {
+              event.preventDefault()
+              const activeItem = items[activeIndex]
+              if (!activeItem) return
+              if (activeItem.type === 'team') handleTeamSelect(activeItem.option.team)
+              if (activeItem.type === 'player') handlePlayerSelect(activeItem.option.player_id)
+            } else if (event.key === 'Escape') {
+              setIsOpen(false)
+            }
+          }}
+          aria-label="Quick search"
+          placeholder="Search players, teams, or pages"
+          className="w-full bg-transparent text-sm text-slate-700 outline-none"
+        />
+        <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 sm:inline-flex">
+          Search
+        </span>
+      </div>
+
+      {isOpen && (
+        <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)]">
+          <div className="border-b border-slate-100 px-4 py-3">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Quick Search</div>
+            <div className="mt-1 text-xs text-slate-500">
+              {hasTypedQuery
+                ? 'Search across players and teams.'
+                : 'Start typing a player or team name.'}
+            </div>
+          </div>
+          <div className="max-h-[min(65vh,30rem)] overflow-y-auto px-3 py-3">
+          {teamMatches.length > 0 && (
+            <div className="border-b border-slate-100 px-1 pb-3">
+              <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Teams</div>
+              <div className="space-y-1">
+                {teamMatches.map((teamOption, index) => {
+                  const tc = getTeamColors(teamOption.team)
+                  const itemIndex = index
+
+                  return (
+                    <button
+                      key={teamOption.team}
+                      type="button"
+                      onClick={() => handleTeamSelect(teamOption.team)}
+                      className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50"
+                      style={{ background: activeIndex === itemIndex ? '#f8fafc' : 'transparent' }}
+                    >
+                      <span>
+                        <span className="block text-sm font-medium text-slate-800">{teamOption.team}</span>
+                      </span>
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: tc.bg, color: tc.primary }}>
+                        Open
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="px-1 pt-3">
+            <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Players</div>
+            {playerMatches.length > 0 ? (
+              <div className="space-y-1">
+                {playerMatches.map((playerOption, index) => {
+                  const tc = getTeamColors(playerOption.team)
+                  const itemIndex = teamMatches.length + index
+
+                  return (
+                    <button
+                      key={playerOption.player_id}
+                      type="button"
+                      onClick={() => handlePlayerSelect(playerOption.player_id)}
+                      className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50"
+                      style={{ background: activeIndex === itemIndex ? '#f8fafc' : 'transparent' }}
+                    >
+                      <span>
+                        <span className="block text-sm font-medium text-slate-800">{playerOption.name}</span>
+                        <span className="block text-xs text-slate-500">{playerOption.team}</span>
+                      </span>
+                      <span
+                        className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                        style={{ background: tc.bg, color: tc.primary }}
+                      >
+                        Open
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                No matches found for "{query.trim()}".
+              </div>
+            )}
+          </div>
+          </div>
+
+          {!hasTypedQuery && (
+            <div className="border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
+              Try names like `A'ja Wilson`, `Caitlin Clark`, `IND`, `Liberty`, or `Aces`.
+            </div>
+          )}
+
+          {hasTypedQuery && !hasResults && (
+            <div className="border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
+              Try a player name, team abbreviation, or team nickname.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { SeasonBlock } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import { buildTeamProfiles, predictMatchup } from '../utils/teamPrediction'
@@ -10,11 +11,13 @@ interface Props {
 
 export default function NextGamePrediction({ block }: Props) {
   const teamProfiles = useMemo(() => (block ? buildTeamProfiles(block) : []), [block])
+  const [searchParams, setSearchParams] = useSearchParams()
   const predictionState = useMemo(
     () => loadTeamPredictions(teamProfiles.map(team => team.team), block ? guessSeasonFromBlock(block) : '2026'),
     [block, teamProfiles]
   )
-  const [selectedTeam, setSelectedTeam] = useState(teamProfiles[0]?.team ?? 'IND')
+  const queryTeam = searchParams.get('team')
+  const [selectedTeam, setSelectedTeam] = useState(queryTeam ?? teamProfiles[0]?.team ?? 'IND')
   const [venue, setVenue] = useState<'home' | 'away'>('home')
   const [showRosterSummary, setShowRosterSummary] = useState(false)
   const [showLineupLab, setShowLineupLab] = useState(false)
@@ -28,6 +31,28 @@ export default function NextGamePrediction({ block }: Props) {
       setSelectedTeam(teamProfiles[0]?.team ?? 'IND')
     }
   }, [selectedTeam, teamProfiles])
+
+  useEffect(() => {
+    if (!teamProfiles.length) return
+
+    const validQueryTeam = queryTeam && teamProfiles.find(team => team.team === queryTeam)
+      ? queryTeam
+      : null
+    const nextTeam = validQueryTeam ?? selectedTeam ?? teamProfiles[0]?.team ?? 'IND'
+
+    if (nextTeam !== selectedTeam) {
+      setSelectedTeam(nextTeam)
+    }
+  }, [queryTeam, selectedTeam, teamProfiles])
+
+  useEffect(() => {
+    if (!selectedTeam) return
+    if (searchParams.get('team') === selectedTeam) return
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('team', selectedTeam)
+    setSearchParams(nextParams, { replace: true })
+  }, [searchParams, selectedTeam, setSearchParams])
 
   const focusTeam = teamProfiles.find(team => team.team === selectedTeam) ?? null
   const focusColors = getTeamColors(selectedTeam)
