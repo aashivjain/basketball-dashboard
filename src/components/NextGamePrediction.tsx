@@ -9,6 +9,10 @@ interface Props {
   block: SeasonBlock | null
 }
 
+function average(values: number[], fallback = 0) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback
+}
+
 export default function NextGamePrediction({ block }: Props) {
   const teamProfiles = useMemo(() => (block ? buildTeamProfiles(block) : []), [block])
   const [searchParams, setSearchParams] = useSearchParams()
@@ -17,33 +21,20 @@ export default function NextGamePrediction({ block }: Props) {
     [block, teamProfiles]
   )
   const queryTeam = searchParams.get('team')
-  const [selectedTeam, setSelectedTeam] = useState(queryTeam ?? teamProfiles[0]?.team ?? 'IND')
   const [venue, setVenue] = useState<'home' | 'away'>('home')
-  const [showRosterSummary, setShowRosterSummary] = useState(false)
+  const [showRotationWatch, setShowRotationWatch] = useState(false)
   const [showLineupLab, setShowLineupLab] = useState(false)
   const [showSynergyBoard, setShowSynergyBoard] = useState(false)
   const [showMatchups, setShowMatchups] = useState(false)
 
   const teamPredictions = predictionState.data
-
-  useEffect(() => {
-    if (!teamProfiles.find(team => team.team === selectedTeam)) {
-      setSelectedTeam(teamProfiles[0]?.team ?? 'IND')
+  const selectedTeam = useMemo(() => {
+    if (!teamProfiles.length) return 'IND'
+    if (queryTeam && teamProfiles.some(team => team.team === queryTeam)) {
+      return queryTeam
     }
-  }, [selectedTeam, teamProfiles])
-
-  useEffect(() => {
-    if (!teamProfiles.length) return
-
-    const validQueryTeam = queryTeam && teamProfiles.find(team => team.team === queryTeam)
-      ? queryTeam
-      : null
-    const nextTeam = validQueryTeam ?? selectedTeam ?? teamProfiles[0]?.team ?? 'IND'
-
-    if (nextTeam !== selectedTeam) {
-      setSelectedTeam(nextTeam)
-    }
-  }, [queryTeam, selectedTeam, teamProfiles])
+    return teamProfiles[0]?.team ?? 'IND'
+  }, [queryTeam, teamProfiles])
 
   useEffect(() => {
     if (!selectedTeam) return
@@ -69,6 +60,10 @@ export default function NextGamePrediction({ block }: Props) {
   const rosterSignals = useMemo(() => {
     if (!focusTeam || !block) return null
     return analyzeTeamRoster(focusTeam, block)
+  }, [block, focusTeam])
+  const rotationWatch = useMemo(() => {
+    if (!focusTeam || !block) return null
+    return analyzeRotationWatch(focusTeam, block)
   }, [block, focusTeam])
   const lineupLab = useMemo(() => {
     if (!focusTeam) return null
@@ -100,7 +95,7 @@ export default function NextGamePrediction({ block }: Props) {
         }
       })
       .sort((a, b) => b.rfPct - a.rfPct)
-  }, [focusTeam, selectedTeam, teamProfiles, venue])
+  }, [focusTeam, selectedTeam, teamPredictions, teamProfiles, venue])
   const summaryCards = useMemo(() => {
     const bestMatchup = matchupRows[0]
     const lineupHeadline = lineupLab?.headline ?? 'Lineup tools ready once a valid rotation sample is available.'
@@ -116,9 +111,9 @@ export default function NextGamePrediction({ block }: Props) {
         accent: focusColors.primary,
       },
       {
-        label: 'Roster Signal',
+        label: 'Most Valuable',
         title: rosterSignals?.mostValuable.player.name ?? 'Core player',
-        detail: rosterSignals?.mostValuable.detail ?? 'Roster signal will appear once the team profile is ready.',
+        detail: rosterSignals?.mostValuable.detail ?? 'Most valuable player context will appear once the team profile is ready.',
         accent: focusColors.secondary,
       },
       {
@@ -156,7 +151,11 @@ export default function NextGamePrediction({ block }: Props) {
         <div className="flex gap-3 flex-wrap items-center">
           <select
             value={selectedTeam}
-            onChange={event => setSelectedTeam(event.target.value)}
+            onChange={event => {
+              const nextParams = new URLSearchParams(searchParams)
+              nextParams.set('team', event.target.value)
+              setSearchParams(nextParams, { replace: true })
+            }}
             className="ui-control rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-slate-700"
           >
             {teamProfiles.map(team => (
@@ -179,31 +178,14 @@ export default function NextGamePrediction({ block }: Props) {
       </div>
 
       <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_50px_-38px_rgba(15,23,42,0.26)]">
-        {rosterSignals && (
+        {rotationWatch && (
           <CollapsibleSection
-            title="Roster Summary"
-            subtitle="Most valuable player and likely tradeable piece"
-            isOpen={showRosterSummary}
-            onToggle={() => setShowRosterSummary(open => !open)}
+            title="Rotation Watch"
+            subtitle="Recent workload trends and the biggest minute swings"
+            isOpen={showRotationWatch}
+            onToggle={() => setShowRotationWatch(open => !open)}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-0 bg-slate-50/70">
-              <RosterCard
-                title="Most Valuable"
-                subtitle="Biggest win driver"
-                player={rosterSignals.mostValuable.player.name}
-                detail={rosterSignals.mostValuable.detail}
-                accent={focusColors.primary}
-                statline={rosterSignals.mostValuable.statline}
-              />
-              <RosterCard
-                title="Chopping Block"
-                subtitle="Tradeable rotation piece"
-                player={rosterSignals.choppingBlock.player.name}
-                detail={rosterSignals.choppingBlock.detail}
-                accent={focusColors.secondary}
-                statline={rosterSignals.choppingBlock.statline}
-              />
-            </div>
+            <RotationWatchSection rotationWatch={rotationWatch} accent={focusColors.primary} />
           </CollapsibleSection>
         )}
 
@@ -293,19 +275,13 @@ export default function NextGamePrediction({ block }: Props) {
                 <GaugeColumn
                   label={row.weightedPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
                   pct={row.weightedPct}
-                  leftTeam={selectedTeam}
-                  rightTeam={row.opponent.team}
                   color={focusColors.primary}
-                  note={compactReason(row.weightedReason)}
                 />
 
                 <GaugeColumn
                   label={row.rfPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
                   pct={row.rfPct}
-                  leftTeam={selectedTeam}
-                  rightTeam={row.opponent.team}
                   color={focusColors.secondary}
-                  note={compactReason(row.rfReason)}
                 />
               </div>
             ))}
@@ -508,28 +484,81 @@ function LineupImpactLab({
   )
 }
 
-function RosterCard({
-  title,
-  subtitle,
-  player,
-  detail,
+function RotationWatchSection({
+  rotationWatch,
   accent,
-  statline,
 }: {
-  title: string
-  subtitle: string
-  player: string
-  detail: string
+  rotationWatch: ReturnType<typeof analyzeRotationWatch>
   accent: string
-  statline: string
 }) {
   return (
-    <div className="p-4 md:p-5 first:border-b md:first:border-b-0 md:first:border-r border-slate-200">
-      <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>{title}</div>
-      <div className="text-[10px] text-slate-400 mt-1">{subtitle}</div>
-      <div className="text-lg font-semibold text-slate-900 mt-2">{player}</div>
-      <div className="text-sm text-slate-500 mt-1">{statline}</div>
-      <div className="text-sm text-slate-600 mt-3 leading-5">{detail}</div>
+    <div className="bg-white px-4 py-4 md:px-5">
+      {rotationWatch.hasAnySignals ? (
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {rotationWatch.categories.map(category => (
+            <div key={category.label} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
+              <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: accent }}>{category.label}</div>
+              <div className="mt-4 space-y-3">
+                <RotationWatchEntryCard title="Up" entry={category.up} direction="up" />
+                <RotationWatchEntryCard title="Down" entry={category.down} direction="down" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+          Not enough recent game history to detect rotation changes yet.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RotationWatchEntryCard({
+  title,
+  entry,
+  direction,
+}: {
+  title: string
+  entry: {
+    playerName: string
+    delta: number
+    summary: string
+    lastGameDate: string
+    sampleLabel: string
+  } | null
+  direction: 'up' | 'down'
+}) {
+  if (!entry) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+        No clear {direction} signal.
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400 font-semibold">{title}</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">{entry.playerName}</div>
+        </div>
+        <div
+          className="rounded-full px-3 py-1.5 text-base font-semibold"
+          style={{
+            background: entry.delta >= 0 ? '#dcfce7' : '#fee2e2',
+            color: entry.delta >= 0 ? '#15803d' : '#dc2626',
+          }}
+        >
+          {entry.delta >= 0 ? '+' : ''}{entry.delta.toFixed(1)}
+        </div>
+      </div>
+      <div className="mt-2 text-[12px] text-slate-600">{entry.summary}</div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-400">
+        <span>{entry.sampleLabel}</span>
+        <span>{entry.lastGameDate}</span>
+      </div>
     </div>
   )
 }
@@ -537,17 +566,11 @@ function RosterCard({
 function GaugeColumn({
   label,
   pct,
-  leftTeam,
-  rightTeam,
   color,
-  note,
 }: {
   label: string
   pct: number
-  leftTeam: string
-  rightTeam: string
   color: string
-  note: string
 }) {
   return (
     <div className="min-w-0">
@@ -559,30 +582,8 @@ function GaugeColumn({
       <div className="mt-2 h-3 w-full rounded-full bg-slate-200 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </div>
-
-      <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
-        <span>{leftTeam}</span>
-        <span>{rightTeam}</span>
-      </div>
-
-      <div className="mt-2 text-[11px] text-slate-500 truncate">{note}</div>
     </div>
   )
-}
-
-function compactReason(text: string) {
-  return text
-    .replace(' currently leans toward ', ' ')
-    .replace(' has home court in this scenario.', ' home edge')
-    .replace(' win rate vs ', ' vs ')
-    .replace('Last 5: ', '')
-    .replace('Average margin', '+/-')
-    .replace('Scoring volume', 'PTS')
-    .replace('Rebounding', 'REB')
-    .replace('Turnover control', 'TOV')
-    .replace('Field-goal efficiency', 'FG')
-    .replace('3-point shooting', '3PT')
-    .replace('Free-throw shooting', 'FT')
 }
 
 function guessSeasonFromBlock(block: SeasonBlock) {
@@ -605,8 +606,6 @@ function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles
     const winLift = average(wins.map(game => game.plus_minus), player.plus_minus) - average(losses.map(game => game.plus_minus), player.plus_minus)
     const scoringDelta = average(wins.map(game => game.pts), player.pts) - average(losses.map(game => game.pts), player.pts)
     const efficiencyDelta = average(wins.map(game => game.fg_pct), player.fg_pct) - average(losses.map(game => game.fg_pct), player.fg_pct)
-    const usage = player.min > 0 ? (player.fga + 0.44 * player.fta + player.tov) / player.min : 0
-
     const impactScore =
       player.pts * 0.9 +
       player.reb * 0.7 +
@@ -620,24 +619,6 @@ function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles
       efficiencyDelta * 18 +
       scoringDelta * 0.45
 
-    const tradeValueScore =
-      player.min * 0.4 +
-      player.pts * 0.85 +
-      player.reb * 0.45 +
-      player.ast * 0.75 +
-      player.fg_pct * 10 +
-      player.fg3_pct * 8 +
-      ts * 12 +
-      usage * 18
-
-    const choppingRisk =
-      player.plus_minus * -0.9 +
-      Math.max(0, 0.54 - ts) * 22 +
-      Math.max(0, 0.5 - efg) * 16 +
-      Math.max(0, 1.4 - astTov) * 5 +
-      Math.max(0, 1.0 - defense / 4) * 4 +
-      Math.max(0, -winLift) * 1.4
-
     return {
       player,
       ts,
@@ -646,24 +627,11 @@ function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles
       defense,
       winLift,
       impactScore,
-      tradeValueScore,
-      choppingScore: tradeValueScore + choppingRisk,
     }
   })
 
   const mostValuable = [...playerSignals]
     .sort((a, b) => b.impactScore - a.impactScore)[0]
-
-  const choppingPool = playerSignals.filter(signal =>
-    signal.player.min >= 12 &&
-    signal.player.gp >= 5 &&
-    signal.player.min < 30 &&
-    signal.impactScore < mostValuable.impactScore * 0.82 &&
-    signal.tradeValueScore > 20
-  )
-
-  const choppingBlock = [...(choppingPool.length ? choppingPool : playerSignals.filter(signal => signal.player.min >= 10))]
-    .sort((a, b) => b.choppingScore - a.choppingScore)[0]
 
   return {
     mostValuable: {
@@ -671,11 +639,90 @@ function analyzeTeamRoster(team: NonNullable<ReturnType<typeof buildTeamProfiles
       statline: `${mostValuable.player.pts.toFixed(1)} PTS • ${(mostValuable.ts * 100).toFixed(0)} TS% • ${mostValuable.player.plus_minus.toFixed(1)} +/-`,
       detail: `${mostValuable.player.name.split(' ')[0]} grades highest once scoring is adjusted for efficiency, defense, ball security, and how strongly their performances track with winning possessions and margin.`,
     },
-    choppingBlock: {
-      player: choppingBlock.player,
-      statline: `${choppingBlock.player.pts.toFixed(1)} PTS • ${(choppingBlock.ts * 100).toFixed(0)} TS% • ${choppingBlock.player.plus_minus.toFixed(1)} +/-`,
-      detail: `${choppingBlock.player.name.split(' ')[0]} still has rotation value and enough offensive profile to interest other teams, but weaker efficiency, defense, or win-impact signals make them more movable than the core.`,
-    },
+  }
+}
+
+function analyzeRotationWatch(team: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>, block: SeasonBlock) {
+  const recentWindow = 5
+  const baselineWindow = 5
+  const minimumBaselineGames = 5
+
+  const entries = team.players
+    .map(player => {
+      const logs = (block.game_logs[String(player.player_id)] ?? []).filter(game => typeof game.min === 'number')
+      const recent = logs.slice(0, recentWindow)
+      const baseline = logs.slice(recentWindow, recentWindow + baselineWindow)
+
+      if (recent.length < recentWindow || baseline.length < minimumBaselineGames) {
+        return null
+      }
+
+      const recentAverage = average(recent.map(game => game.min))
+      const baselineAverage = average(baseline.map(game => game.min))
+      const lastGameDate = recent[0]?.game_date ?? 'No recent game'
+
+      return {
+        player,
+        lastGameDate,
+        recentGames: recent.length,
+        baselineGames: baseline.length,
+        minuteDelta: recentAverage - baselineAverage,
+        pointsDelta: average(recent.map(game => game.pts)) - average(baseline.map(game => game.pts)),
+        reboundDelta: average(recent.map(game => game.reb)) - average(baseline.map(game => game.reb)),
+      }
+    })
+    .filter(Boolean) as Array<{
+      player: NonNullable<ReturnType<typeof buildTeamProfiles>[number]>['players'][number]
+      lastGameDate: string
+      recentGames: number
+      baselineGames: number
+      minuteDelta: number
+      pointsDelta: number
+      reboundDelta: number
+    }>
+
+  const buildCategory = (
+    label: string,
+    getter: (entry: typeof entries[number]) => number,
+    summaryLabel: string
+  ) => {
+    const upEntry = [...entries]
+      .filter(entry => getter(entry) > 0)
+      .sort((a, b) => getter(b) - getter(a))[0] ?? null
+    const downEntry = [...entries]
+      .filter(entry => getter(entry) < 0)
+      .sort((a, b) => getter(a) - getter(b))[0] ?? null
+
+    return {
+      label,
+      up: upEntry
+        ? {
+            playerName: upEntry.player.name,
+            delta: getter(upEntry),
+            summary: `${summaryLabel} up`,
+            lastGameDate: upEntry.lastGameDate,
+            sampleLabel: `Last ${upEntry.recentGames} vs previous ${upEntry.baselineGames} games`,
+          }
+        : null,
+      down: downEntry
+        ? {
+            playerName: downEntry.player.name,
+            delta: getter(downEntry),
+            summary: `${summaryLabel} down`,
+            lastGameDate: downEntry.lastGameDate,
+            sampleLabel: `Last ${downEntry.recentGames} vs previous ${downEntry.baselineGames} games`,
+          }
+        : null,
+    }
+  }
+
+  return {
+    categories: [
+      buildCategory('Minutes', entry => entry.minuteDelta, 'Minutes'),
+      buildCategory('Points', entry => entry.pointsDelta, 'Points'),
+      buildCategory('Rebounds', entry => entry.reboundDelta, 'Rebounds'),
+    ],
+    hasAnySignals: entries.length > 0,
   }
 }
 
