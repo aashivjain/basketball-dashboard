@@ -14,6 +14,7 @@ import GrowthChart from './GrowthChart'
 import AdvancedStats from './AdvancedStats'
 import NextGamePrediction from './NextGamePrediction'
 import NewsHub from './NewsHub'
+import GamesHub from './GamesHub'
 import { buildPlayerImpactIndex } from '../utils/playerImpact'
 import { loadDashboardData } from '../utils/dataValidation'
 import { useDashboardState, usePlayerSelectionState } from '../hooks/useDashboardState'
@@ -105,9 +106,11 @@ export default function Dashboard() {
   const isPlayersCompare = section === 'players' && playerTab === 'compare'
   const isPlayersRankings = section === 'players' && playerTab === 'rankings'
   const isPlayersBuilder = section === 'players' && playerTab === 'builder'
-  const showSeasonTypeToggle = section === 'players' || section === 'teams'
+  const showSeasonTypeToggle = section === 'players' || section === 'teams' || section === 'games'
   const sectionTitle = section === 'teams'
     ? 'Team Command Center'
+    : section === 'games'
+      ? 'Games'
     : section === 'news'
       ? 'WNBA News Desk'
       : isPlayersCompare
@@ -119,6 +122,8 @@ export default function Dashboard() {
             : 'Player Studio'
   const sectionSubtitle = section === 'teams'
     ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoffs'} team outlooks, matchup edges, and lineup tools.`
+    : section === 'games'
+      ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoff'} stat games built from the same live player data used across the dashboard.`
     : section === 'news'
       ? `Fresh headlines, signals, and league movement from around the WNBA.`
       : isPlayersCompare
@@ -164,6 +169,11 @@ export default function Dashboard() {
                 style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Teams</NavLink>
               <NavLink
+                to="/games"
+                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
+                style={{ background: section === 'games' ? '#1e293b' : 'transparent', color: section === 'games' ? '#fff' : '#64748b', fontWeight: 600 }}
+              >Games</NavLink>
+              <NavLink
                 to="/news"
                 className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
                 style={{ background: section === 'news' ? '#1e293b' : 'transparent', color: section === 'news' ? '#fff' : '#64748b', fontWeight: 600 }}
@@ -195,7 +205,7 @@ export default function Dashboard() {
             />
           </div>
 
-          {(section === 'players' || section === 'teams') && (
+          {(section === 'players' || section === 'teams' || section === 'games') && (
             <div className="mt-3 flex items-center gap-2.5 flex-wrap rounded-[20px] border border-slate-200/80 bg-white/88 px-3 py-2 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.35)]">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Context</div>
               <select
@@ -291,6 +301,12 @@ export default function Dashboard() {
                 )}
               </>
               )}
+
+              {section === 'games' && (
+                <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                  Keep your streak alive in a higher-or-lower WNBA stats challenge.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -304,6 +320,8 @@ export default function Dashboard() {
         )}
         {section === 'teams' ? (
           <NextGamePrediction block={block} />
+        ) : section === 'games' ? (
+          <GamesHub key={`${season}-${seasonType}`} block={block} season={season} seasonType={seasonType} />
         ) : section === 'news' ? (
           <NewsHub block={block} news={data.news} />
         ) : playerTab === 'compare' ? (
