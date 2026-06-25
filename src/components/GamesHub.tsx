@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LeaguePlayer, SeasonBlock } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 
@@ -23,7 +23,12 @@ type GameRound = {
   challenger: LeaguePlayer
 }
 
-const HIGH_SCORE_STORAGE_KEY = 'wnba-games-higher-lower-high-score'
+type MetricProgress = {
+  score: number
+  highScore: number
+}
+
+const GAME_PROGRESS_STORAGE_KEY = 'wnba-games-higher-lower-progress'
 
 const gameMetrics: GameMetric[] = [
   {
@@ -66,7 +71,14 @@ function pickRandomPlayer(players: LeaguePlayer[], excludeId?: number) {
 
   if (pool.length === 0) return null
 
-  const index = Math.floor(Math.random() * pool.length)
+  let index = Math.floor(Math.random() * pool.length)
+
+  if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
+    const values = new Uint32Array(1)
+    window.crypto.getRandomValues(values)
+    index = values[0] % pool.length
+  }
+
   return pool[index] ?? null
 }
 
@@ -85,33 +97,82 @@ function buildRound(players: LeaguePlayer[], anchor?: LeaguePlayer | null) {
   } satisfies GameRound
 }
 
+function isCorrectGuess(
+  guess: 'higher' | 'lower',
+  anchorValue: number,
+  challengerValue: number
+) {
+  if (challengerValue === anchorValue) return true
+  if (guess === 'higher') return challengerValue > anchorValue
+  return challengerValue < anchorValue
+}
+
 export default function GamesHub({ block, season, seasonType }: Props) {
   const players = useMemo(() => qualifyPlayers(block), [block])
+  const advanceTimeoutRef = useRef<number | null>(null)
   const [metricKey, setMetricKey] = useState<GameMetricKey>('pts')
   const [round, setRound] = useState<GameRound | null>(null)
-  const [score, setScore] = useState(0)
-  const [highScore, setHighScore] = useState(0)
+  const [progressByMetric, setProgressByMetric] = useState<Record<GameMetricKey, MetricProgress>>({
+    pts: { score: 0, highScore: 0 },
+    reb: { score: 0, highScore: 0 },
+    ast: { score: 0, highScore: 0 },
+  })
   const [selection, setSelection] = useState<'higher' | 'lower' | null>(null)
 
   const metric = gameMetrics.find(entry => entry.key === metricKey) ?? gameMetrics[0]
+  const metricProgress = progressByMetric[metricKey]
+  const score = metricProgress?.score ?? 0
+  const highScore = metricProgress?.highScore ?? 0
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const stored = window.localStorage.getItem(HIGH_SCORE_STORAGE_KEY)
-    const parsed = stored ? Number(stored) : 0
-    if (Number.isFinite(parsed) && parsed > 0) {
-      setHighScore(parsed)
+    const stored = window.localStorage.getItem(GAME_PROGRESS_STORAGE_KEY)
+    if (!stored) return
+
+    try {
+      const parsed = JSON.parse(stored) as Partial<Record<GameMetricKey, MetricProgress>>
+      setProgressByMetric({
+        pts: {
+          score: Number.isFinite(parsed.pts?.score) ? parsed.pts!.score : 0,
+          highScore: Number.isFinite(parsed.pts?.highScore) ? parsed.pts!.highScore : 0,
+        },
+        reb: {
+          score: Number.isFinite(parsed.reb?.score) ? parsed.reb!.score : 0,
+          highScore: Number.isFinite(parsed.reb?.highScore) ? parsed.reb!.highScore : 0,
+        },
+        ast: {
+          score: Number.isFinite(parsed.ast?.score) ? parsed.ast!.score : 0,
+          highScore: Number.isFinite(parsed.ast?.highScore) ? parsed.ast!.highScore : 0,
+        },
+      })
+    } catch {
+      setProgressByMetric({
+        pts: { score: 0, highScore: 0 },
+        reb: { score: 0, highScore: 0 },
+        ast: { score: 0, highScore: 0 },
+      })
     }
   }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    window.localStorage.setItem(HIGH_SCORE_STORAGE_KEY, String(highScore))
-  }, [highScore])
+    window.localStorage.setItem(GAME_PROGRESS_STORAGE_KEY, JSON.stringify(progressByMetric))
+  }, [progressByMetric])
 
   useEffect(() => {
+    return () => {
+      if (advanceTimeoutRef.current !== null && typeof window !== 'undefined') {
+        window.clearTimeout(advanceTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (advanceTimeoutRef.current !== null && typeof window !== 'undefined') {
+      window.clearTimeout(advanceTimeoutRef.current)
+      advanceTimeoutRef.current = null
+    }
     setSelection(null)
-    setScore(0)
     setRound(buildRound(players))
   }, [players, metricKey])
 
@@ -131,34 +192,41 @@ export default function GamesHub({ block, season, seasonType }: Props) {
 
   const anchorValue = metric.value(round.anchor)
   const challengerValue = metric.value(round.challenger)
-  const correctAnswer = challengerValue >= anchorValue ? 'higher' : 'lower'
   const revealed = selection !== null
-  const gotItRight = selection === correctAnswer
+  const gotItRight = selection
+    ? isCorrectGuess(selection, anchorValue, challengerValue)
+    : false
 
   const handleGuess = (guess: 'higher' | 'lower') => {
+    if (revealed && !gotItRight) {
+      setSelection(null)
+      setRound(buildRound(players, round.challenger))
+      return
+    }
     if (revealed) return
 
-    const nextCorrect = guess === correctAnswer
+    const nextCorrect = isCorrectGuess(guess, anchorValue, challengerValue)
     const nextScore = nextCorrect ? score + 1 : 0
 
     setSelection(guess)
-    setScore(nextScore)
-    if (nextScore > highScore) {
-      setHighScore(nextScore)
-    }
+    setProgressByMetric(current => {
+      const currentMetric = current[metricKey] ?? { score: 0, highScore: 0 }
+      return {
+        ...current,
+        [metricKey]: {
+          score: nextScore,
+          highScore: Math.max(currentMetric.highScore, nextScore),
+        },
+      }
+    })
 
     if (nextCorrect) {
-      window.setTimeout(() => {
+      advanceTimeoutRef.current = window.setTimeout(() => {
         setSelection(null)
         setRound(buildRound(players, round.challenger))
+        advanceTimeoutRef.current = null
       }, 700)
     }
-  }
-
-  const handleNext = () => {
-    const nextAnchor = round.challenger
-    setSelection(null)
-    setRound(buildRound(players, nextAnchor))
   }
 
   return (
@@ -173,7 +241,7 @@ export default function GamesHub({ block, season, seasonType }: Props) {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-3">
             <ScoreCard label="Score" value={`${score}`} accent={accent.primary} />
             <ScoreCard label="High Score" value={`${highScore}`} accent={accent.secondary} />
             <ScoreCard label="Stat" value={metric.shortLabel} accent="#0f172a" />
@@ -209,13 +277,23 @@ export default function GamesHub({ block, season, seasonType }: Props) {
                 Correct
               </span>
             )}
+            {revealed && !gotItRight && (
+              <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+                Wrong
+              </span>
+            )}
           </div>
+          {revealed && !gotItRight && (
+            <div className="mt-2 text-xs text-rose-600">
+              {round.challenger.name} was {challengerValue === anchorValue ? 'the same' : challengerValue > anchorValue ? 'higher' : 'lower'}. Tap either button to keep going.
+            </div>
+          )}
         </div>
 
         <div
           className="grid grid-cols-1 gap-6 px-6 py-6 transition-colors xl:grid-cols-[1fr_auto_1fr] xl:items-center"
           style={{
-            background: revealed && gotItRight ? '#f8fffb' : undefined,
+            background: revealed && gotItRight ? '#f8fffb' : revealed ? '#fff8f8' : undefined,
           }}
         >
           <PlayerGameCard
@@ -225,18 +303,16 @@ export default function GamesHub({ block, season, seasonType }: Props) {
             metricValue={metric.format(round.anchor)}
             revealValue
             isCorrect={revealed && gotItRight}
+            isWrong={revealed && !gotItRight}
           />
 
           <div className="flex flex-col items-center gap-3">
-            <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Next Player
-            </div>
-            <div className="flex gap-3">
+            <div className="flex w-full max-w-[260px] gap-3 xl:w-auto xl:max-w-none">
               <button
                 type="button"
                 onClick={() => handleGuess('higher')}
-                disabled={revealed}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-default disabled:opacity-70"
+                disabled={revealed && gotItRight}
+                className="flex-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-default disabled:opacity-70"
                 style={{ background: '#15803d' }}
               >
                 Higher
@@ -244,8 +320,8 @@ export default function GamesHub({ block, season, seasonType }: Props) {
               <button
                 type="button"
                 onClick={() => handleGuess('lower')}
-                disabled={revealed}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-default disabled:opacity-70"
+                disabled={revealed && gotItRight}
+                className="flex-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-default disabled:opacity-70"
                 style={{ background: '#dc2626' }}
               >
                 Lower
@@ -260,44 +336,9 @@ export default function GamesHub({ block, season, seasonType }: Props) {
             metricValue={metric.format(round.challenger)}
             revealValue={revealed}
             isCorrect={revealed && gotItRight}
+            isWrong={revealed && !gotItRight}
           />
         </div>
-
-        {revealed && !gotItRight && (
-          <div
-            className="border-t px-6 py-5"
-            style={{
-              borderColor: '#fdba74',
-              background: '#fff7ed',
-            }}
-          >
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <div
-                  className="text-[11px] uppercase tracking-[0.18em] font-semibold"
-                  style={{ color: '#c2410c' }}
-                >
-                  Wrong
-                </div>
-                <div className="mt-2 text-2xl tracking-tight text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
-                  {round.challenger.name} was {correctAnswer}.
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {round.anchor.name}: {metric.format(round.anchor)} {metric.shortLabel} • {round.challenger.name}: {metric.format(round.challenger)} {metric.shortLabel}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleNext}
-                className="rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all"
-                style={{ background: accent.primary }}
-              >
-                Next Game
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="app-card p-5">
@@ -319,6 +360,7 @@ function PlayerGameCard({
   metricValue,
   revealValue,
   isCorrect,
+  isWrong,
 }: {
   player: LeaguePlayer
   accent: ReturnType<typeof getTeamColors>
@@ -326,13 +368,18 @@ function PlayerGameCard({
   metricValue: string
   revealValue: boolean
   isCorrect?: boolean
+  isWrong?: boolean
 }) {
   return (
     <div
       className="rounded-[28px] border bg-white p-5 shadow-sm transition-colors"
       style={{
-        borderColor: isCorrect ? '#86efac' : '#e2e8f0',
-        boxShadow: isCorrect ? '0 14px 34px -24px rgba(34,197,94,0.5)' : undefined,
+        borderColor: isCorrect ? '#86efac' : isWrong ? '#fda4af' : '#e2e8f0',
+        boxShadow: isCorrect
+          ? '0 14px 34px -24px rgba(34,197,94,0.5)'
+          : isWrong
+            ? '0 14px 34px -24px rgba(244,63,94,0.35)'
+            : undefined,
       }}
     >
       <div className="flex items-start justify-between gap-3">
