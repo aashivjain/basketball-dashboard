@@ -107,32 +107,6 @@ export default function Dashboard() {
   const isPlayersRankings = section === 'players' && playerTab === 'rankings'
   const isPlayersBuilder = section === 'players' && playerTab === 'builder'
   const showSeasonTypeToggle = section === 'players' || section === 'teams' || section === 'games'
-  const sectionTitle = section === 'teams'
-    ? 'Team Command Center'
-    : section === 'games'
-      ? 'Games'
-    : section === 'news'
-      ? 'WNBA News Desk'
-      : isPlayersCompare
-        ? 'Player Compare'
-        : isPlayersRankings
-          ? 'Player Rankings'
-          : isPlayersBuilder
-            ? 'Player Builder'
-            : 'Player Studio'
-  const sectionSubtitle = section === 'teams'
-    ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoffs'} team outlooks, matchup edges, and lineup tools.`
-    : section === 'games'
-      ? `${season} ${seasonType === 'regular_season' ? 'regular season' : 'playoff'} stat games built from the same live player data used across the dashboard.`
-    : section === 'news'
-      ? `Fresh headlines, signals, and league movement from around the WNBA.`
-      : isPlayersCompare
-        ? `${season} side-by-side player comparison across the league.`
-        : isPlayersRankings
-          ? `${season} leaderboards with impact and production context.`
-          : isPlayersBuilder
-            ? `${season} custom player modeling against the live WNBA baseline.`
-            : `${season} player profiles with shot maps, trends, and advanced context.`
 
   const positionAvg = useMemo(() => getPositionAverage(player, allPlayers, rosterById), [player, allPlayers, rosterById])
   const searchableTeams = useMemo(
@@ -146,63 +120,68 @@ export default function Dashboard() {
     <div className="ui-shell min-h-screen transition-colors duration-500" style={{ background: isPlayersOverview && player && teamColor ? `linear-gradient(180deg, ${teamColor.bg} 0%, #edf2f7 28%)` : undefined }}>
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-[rgba(248,250,252,0.90)] backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 py-3 md:px-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="min-w-0 max-w-2xl">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">WNBA Analytics</div>
-              <h1 className="mt-1 text-[25px] leading-none tracking-tight text-slate-950">
-                {sectionTitle}
-              </h1>
-              <p className="mt-1 max-w-2xl text-[12px] leading-5 text-slate-500">
-                {sectionSubtitle}
-              </p>
+          <div className="grid gap-3 md:gap-4 lg:grid-cols-[220px_minmax(0,1fr)_280px] lg:items-center">
+            <div className="flex min-h-[58px] items-center justify-center lg:justify-start">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">WNBA Analytics</div>
+                <div className="mt-1 text-[23px] leading-none tracking-tight text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                  Dashboard
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 p-1 text-sm shadow-sm">
+            <div className="flex min-h-[58px] items-center justify-center">
+              <div className="grid w-full max-w-[420px] grid-cols-4 items-center gap-1.5 rounded-[22px] border border-slate-200/90 bg-white/90 p-1 text-sm shadow-sm">
               <NavLink
                 to="/players"
-                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
+                className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
                 style={{ background: section === 'players' ? '#1e293b' : 'transparent', color: section === 'players' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Players</NavLink>
               <NavLink
                 to="/teams"
-                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
+                className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
                 style={{ background: section === 'teams' ? '#1e293b' : 'transparent', color: section === 'teams' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Teams</NavLink>
               <NavLink
                 to="/games"
-                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
+                className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
                 style={{ background: section === 'games' ? '#1e293b' : 'transparent', color: section === 'games' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Games</NavLink>
               <NavLink
                 to="/news"
-                className="ui-nav-button rounded-full px-3.5 py-1.5 transition-all"
+                className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
                 style={{ background: section === 'news' ? '#1e293b' : 'transparent', color: section === 'news' ? '#fff' : '#64748b', fontWeight: 600 }}
               >News</NavLink>
+              </div>
             </div>
 
-            <QuickSearch
-              allPlayers={allPlayers}
-              teams={searchableTeams}
-              onSelectPlayer={(playerId) => {
-                setSelectedPlayerId(playerId)
-                setCompareId(null)
-                setShowCompare(false)
-                navigate(buildPlayerRoute('overview', playerId))
-                if (typeof window !== 'undefined') {
-                  window.requestAnimationFrame(() => {
-                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-                  })
-                }
-              }}
-              onSelectTeam={(team) => {
-                navigate(`/teams?team=${encodeURIComponent(team)}`)
-                if (typeof window !== 'undefined') {
-                  window.requestAnimationFrame(() => {
-                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-                  })
-                }
-              }}
-            />
+            <div className="flex min-h-[58px] items-center justify-stretch lg:justify-end">
+              <div className="w-full max-w-full lg:max-w-[280px]">
+                <QuickSearch
+                  allPlayers={allPlayers}
+                  teams={searchableTeams}
+                  onSelectPlayer={(playerId) => {
+                    setSelectedPlayerId(playerId)
+                    setCompareId(null)
+                    setShowCompare(false)
+                    navigate(buildPlayerRoute('overview', playerId))
+                    if (typeof window !== 'undefined') {
+                      window.requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+                      })
+                    }
+                  }}
+                  onSelectTeam={(team) => {
+                    navigate(`/teams?team=${encodeURIComponent(team)}`)
+                    if (typeof window !== 'undefined') {
+                      window.requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+                      })
+                    }
+                  }}
+                />
+              </div>
+            </div>
           </div>
 
           {(section === 'players' || section === 'teams' || section === 'games') && (
@@ -240,7 +219,7 @@ export default function Dashboard() {
 
               {section === 'players' && (
               <>
-                <nav className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 text-sm">
+                <nav className="grid grid-cols-2 gap-1 rounded-[18px] border border-slate-200 bg-slate-50 p-1 text-sm sm:flex sm:items-center">
                 <NavLink
                   to={buildPlayerRoute('overview')}
                   className="ui-nav-button rounded-full px-3 py-1 transition-all"
