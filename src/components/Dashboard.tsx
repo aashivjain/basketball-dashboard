@@ -15,6 +15,7 @@ import AdvancedStats from './AdvancedStats'
 import NextGamePrediction from './NextGamePrediction'
 import NewsHub from './NewsHub'
 import GamesHub from './GamesHub'
+import LeagueHub from './LeagueHub'
 import { buildPlayerImpactIndex } from '../utils/playerImpact'
 import { loadDashboardData } from '../utils/dataValidation'
 import { useDashboardState, usePlayerSelectionState } from '../hooks/useDashboardState'
@@ -131,12 +132,17 @@ export default function Dashboard() {
             </div>
 
             <div className="flex min-h-[58px] items-center justify-center">
-              <div className="grid w-full max-w-[420px] grid-cols-4 items-center gap-1.5 rounded-[22px] border border-slate-200/90 bg-white/90 p-1 text-sm shadow-sm">
+              <div className="grid w-full max-w-[520px] grid-cols-5 items-center gap-1.5 rounded-[22px] border border-slate-200/90 bg-white/90 p-1 text-sm shadow-sm">
               <NavLink
                 to="/players"
                 className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
                 style={{ background: section === 'players' ? '#1e293b' : 'transparent', color: section === 'players' ? '#fff' : '#64748b', fontWeight: 600 }}
               >Players</NavLink>
+              <NavLink
+                to="/league"
+                className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
+                style={{ background: section === 'league' ? '#1e293b' : 'transparent', color: section === 'league' ? '#fff' : '#64748b', fontWeight: 600 }}
+              >League</NavLink>
               <NavLink
                 to="/teams"
                 className="ui-nav-button rounded-full px-3 py-2 text-center text-[13px] transition-all sm:px-3.5 sm:py-1.5 sm:text-sm"
@@ -184,7 +190,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {(section === 'players' || section === 'teams' || section === 'games') && (
+          {(section === 'players' || section === 'teams' || section === 'games' || section === 'league') && (
             <div className="mt-3 flex items-center gap-2.5 flex-wrap rounded-[20px] border border-slate-200/80 bg-white/88 px-3 py-2 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.35)]">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Context</div>
               <select
@@ -297,7 +303,9 @@ export default function Dashboard() {
             Data validation warnings: {dataIssues.join(' ')}
           </div>
         )}
-        {section === 'teams' ? (
+        {section === 'league' ? (
+          <LeagueHub block={block} season={season} />
+        ) : section === 'teams' ? (
           <NextGamePrediction block={block} />
         ) : section === 'games' ? (
           <GamesHub key={`${season}-${seasonType}`} block={block} season={season} seasonType={seasonType} />
