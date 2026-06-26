@@ -14,8 +14,10 @@ export function usePlayerRouteState(options: {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const pathname = location.pathname
-  const section: 'players' | 'teams' | 'news' | 'games' = pathname.startsWith('/teams')
+  const section: 'players' | 'teams' | 'news' | 'games' | 'league' = pathname.startsWith('/teams')
     ? 'teams'
+    : pathname.startsWith('/league')
+      ? 'league'
     : pathname.startsWith('/games')
       ? 'games'
     : pathname.startsWith('/news')
