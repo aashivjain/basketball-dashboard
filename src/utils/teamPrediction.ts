@@ -202,6 +202,18 @@ export function buildTeamProfiles(block: SeasonBlock) {
   })
 }
 
+export function buildTeamRankings(profiles: ReturnType<typeof buildTeamProfiles>) {
+  // Rank all teams across both conferences by wins, then losses
+  const sorted = [...profiles].sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins
+    if (a.losses !== b.losses) return a.losses - b.losses
+    return a.team.localeCompare(b.team)
+  })
+  
+  // Create map of team → overall rank (1-indexed)
+  return new Map(sorted.map((profile, index) => [profile.team, index + 1]))
+}
+
 export function predictMatchup(teamA: TeamProfile, teamB: TeamProfile, gameContext: 'home' | 'away' = 'home') {
   const homeTeam = gameContext === 'home' ? teamA.team : teamB.team
   const awayTeam = gameContext === 'home' ? teamB.team : teamA.team

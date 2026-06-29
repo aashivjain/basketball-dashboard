@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { SeasonBlock } from '../types'
 import { getTeamColors } from '../utils/teamColors'
-import { buildTeamProfiles, predictMatchup } from '../utils/teamPrediction'
+import { buildTeamProfiles, buildTeamRankings, predictMatchup } from '../utils/teamPrediction'
 import { loadTeamPredictions } from '../utils/dataValidation'
 
 interface Props {
@@ -77,6 +77,8 @@ export default function NextGamePrediction({ block }: Props) {
   const matchupRows = useMemo(() => {
     if (!focusTeam) return []
 
+    const rankings = buildTeamRankings(teamProfiles)
+
     return teamProfiles
       .filter(team => team.team !== focusTeam.team)
       .map(opponent => {
@@ -92,9 +94,10 @@ export default function NextGamePrediction({ block }: Props) {
           weightedReason: weightedPrediction.reasons[0]?.edge ?? '',
           rfPct,
           rfReason: rfPrediction?.reasons[0]?.detail ?? '',
+          rank: rankings.get(opponent.team) ?? 999,
         }
       })
-      .sort((a, b) => b.rfPct - a.rfPct)
+      .sort((a, b) => a.rank - b.rank)
   }, [focusTeam, selectedTeam, teamPredictions, teamProfiles, venue])
   const summaryCards = useMemo(() => {
     const bestMatchup = matchupRows[0]

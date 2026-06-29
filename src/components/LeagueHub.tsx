@@ -1,5 +1,5 @@
 import type { SeasonBlock } from '../types'
-import { buildTeamProfiles } from '../utils/teamPrediction'
+import { buildTeamProfiles, buildTeamRankings } from '../utils/teamPrediction'
 
 interface Props {
   block: SeasonBlock | null
@@ -57,10 +57,54 @@ function formatGamesBack(teamWins: number, teamLosses: number, leaderWins: numbe
   return Number.isInteger(gamesBack) ? String(gamesBack) : gamesBack.toFixed(1)
 }
 
+function buildOverallStandings(block: SeasonBlock | null) {
+  if (!block) return []
+
+  const profiles = buildTeamProfiles(block)
+  const rankByTeam = buildTeamRankings(profiles)
+  
+  // Find the actual leader (most wins, then fewest losses)
+  const leader = [...profiles].sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins
+    return a.losses - b.losses
+  })[0]
+  
+  const leaderWins = leader?.wins ?? 0
+  const leaderLosses = leader?.losses ?? 0
+
+  return profiles
+    .map(profile => {
+      const normalizedTeam = normalizeTeamCode(profile.team)
+      const homeGames = profile.games.filter(g => g.matchup.includes('vs.'))
+      const awayGames = profile.games.filter(g => g.matchup.includes('@'))
+      
+      const homeWins = homeGames.filter(g => g.wl === 'W').length
+      const homeLosses = homeGames.length - homeWins
+      const awayWins = awayGames.filter(g => g.wl === 'W').length
+      const awayLosses = awayGames.length - awayWins
+      
+      const gamesBack = ((leaderWins - profile.wins) + (profile.losses - leaderLosses)) / 2
+
+      return {
+        rank: rankByTeam.get(profile.team) ?? 999,
+        team: profile.team,
+        displayTeam: normalizedTeam,
+        wins: profile.wins,
+        losses: profile.losses,
+        pct: formatWinningPct(profile.wins, profile.losses),
+        gb: gamesBack <= 0 ? '-' : (Number.isInteger(gamesBack) ? String(gamesBack) : gamesBack.toFixed(1)),
+        homeRecord: `${homeWins}-${homeLosses}`,
+        awayRecord: `${awayWins}-${awayLosses}`,
+      }
+    })
+    .sort((a, b) => a.rank - b.rank)
+}
+
 function buildConferenceStandings(block: SeasonBlock | null) {
   if (!block) return []
 
   const profiles = buildTeamProfiles(block)
+  const rankByTeam = buildTeamRankings(profiles)
   const grouped = new Map<ConferenceName, StandingsRow[]>()
 
   profiles.forEach(profile => {
@@ -81,14 +125,6 @@ function buildConferenceStandings(block: SeasonBlock | null) {
       gb: '-',
     })
   })
-
-  const allRows = Array.from(grouped.values()).flat()
-  const overallRanking = [...allRows].sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins
-    if (a.losses !== b.losses) return a.losses - b.losses
-    return a.displayTeam.localeCompare(b.displayTeam)
-  })
-  const rankByTeam = new Map(overallRanking.map((row, index) => [row.team, index + 1]))
 
   return (['Eastern Conference', 'Western Conference'] as const)
     .map(conference => {
@@ -119,7 +155,7 @@ function buildConferenceStandings(block: SeasonBlock | null) {
 }
 
 export default function LeagueHub({ block, season }: Props) {
-  const conferenceStandings = buildConferenceStandings(block)
+  const standings = buildOverallStandings(block)
 
   return (
     <section className="space-y-6">
@@ -138,41 +174,37 @@ export default function LeagueHub({ block, season }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {conferenceStandings.map(group => (
-          <div key={group.conference} className="app-panel p-5">
-            <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-slate-500">
-              {group.conference}
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white">
-              <div className="grid grid-cols-[48px_1fr_52px_52px_68px_52px] gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                <div>Rk</div>
-                <div>Team</div>
-                <div>W</div>
-                <div>L</div>
-                <div>PCT</div>
-                <div>GB</div>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {group.entries.map(entry => (
-                  <div
-                    key={entry.team}
-                    className="grid grid-cols-[48px_1fr_52px_52px_68px_52px] gap-2 px-4 py-3 text-sm text-slate-700"
-                  >
-                    <div className="font-semibold text-slate-400">{entry.overallRank ?? '-'}</div>
-                    <div className="font-semibold text-slate-950">{entry.displayTeam}</div>
-                    <div>{entry.wins}</div>
-                    <div>{entry.losses}</div>
-                    <div>{entry.pct}</div>
-                    <div>{entry.gb}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <div className="app-panel p-5">
+        <div className="overflow-x-auto rounded-[22px] border border-slate-200 bg-white">
+          <div className="grid grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 min-w-min">
+            <div>Rk</div>
+            <div>Team</div>
+            <div>W</div>
+            <div>L</div>
+            <div>Pct</div>
+            <div>GB</div>
+            <div>Home</div>
+            <div>Away</div>
           </div>
-        ))}
+
+          <div className="divide-y divide-slate-100">
+            {standings.map(entry => (
+              <div
+                key={entry.team}
+                className="grid grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 px-4 py-3 items-center text-sm min-w-min hover:bg-slate-50 transition-colors"
+              >
+                <div className="font-semibold text-slate-400 text-center">{entry.rank}</div>
+                <div className="font-semibold text-slate-950 min-w-0">{entry.displayTeam}</div>
+                <div className="text-center text-slate-700">{entry.wins}</div>
+                <div className="text-center text-slate-700">{entry.losses}</div>
+                <div className="text-center text-slate-700 font-medium">{entry.pct}</div>
+                <div className="text-center text-slate-700">{entry.gb}</div>
+                <div className="text-center text-slate-600 text-xs">{entry.homeRecord}</div>
+                <div className="text-center text-slate-600 text-xs">{entry.awayRecord}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )
