@@ -29,8 +29,16 @@ __pycache__
 .venv
 venv
 .env
+backend/.env
+
+# Database (re-create via scripts)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
 
 # Data (re-fetch via scripts)
-src/data/fever_data.json
-src/data/wnba_data.json
-src/data/team_predictions.json
+src/data/
+scripts/data/
+scripts/logs/
