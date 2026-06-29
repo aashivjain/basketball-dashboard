@@ -8,6 +8,7 @@ import json
 import sqlite3
 import sys
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from validate_data import (
@@ -83,6 +84,45 @@ class WNBAMigration:
         if self.conn:
             self.conn.close()
             self.logger.info("Database connection closed")
+    
+    def clean_and_init_db(self):
+        """Delete old database and reinitialize schema (for --clean flag)"""
+        self.logger.section("Cleaning Database")
+        
+        # Delete existing database if present
+        if DB_PATH.exists():
+            try:
+                DB_PATH.unlink()
+                self.logger.success(f"Deleted old database: {DB_PATH}")
+            except Exception as e:
+                self.logger.error(f"Failed to delete database: {e}")
+                raise
+        
+        # Run init-db script to create fresh schema
+        try:
+            backend_dir = DB_PATH.parent
+            init_script = backend_dir / 'scripts' / 'init-db.mjs'
+            
+            result = subprocess.run(
+                ['node', str(init_script)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(backend_dir)
+            )
+            
+            if result.returncode != 0:
+                self.logger.error(f"Database initialization failed: {result.stderr}")
+                raise Exception(f"init-db.mjs failed: {result.stderr}")
+            
+            self.logger.success("Database schema initialized")
+            
+        except subprocess.TimeoutExpired:
+            self.logger.error("Database initialization timed out")
+            raise
+        except Exception as e:
+            self.logger.error(f"Failed to initialize database: {e}")
+            raise
     
     def load_json_data(self):
         """Load JSON data from file"""
@@ -425,10 +465,15 @@ class WNBAMigration:
             print("✗ Migration completed with errors")
         print("="*50 + "\n")
     
-    def run(self):
+    def run(self, clean=False):
         """Run full migration"""
         try:
             self.logger.section("WNBA Data Migration Starting")
+            
+            # Clean and reinit database if --clean flag used
+            if clean:
+                self.clean_and_init_db()
+            
             self.load_json_data()
             self.connect_db()
             
@@ -452,6 +497,9 @@ class WNBAMigration:
         return len(self.logger.errors) == 0
 
 if __name__ == '__main__':
+    # Check for --clean flag
+    clean_flag = '--clean' in sys.argv
+    
     migration = WNBAMigration()
-    success = migration.run()
+    success = migration.run(clean=clean_flag)
     exit(0 if success else 1)
