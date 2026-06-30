@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Shot } from '../types'
 
 interface Props {
@@ -78,11 +78,6 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const [rangeStart, setRangeStart] = useState(0)
   const [rangeEnd, setRangeEnd] = useState(Math.max(0, orderedDates.length - 1))
 
-  useEffect(() => {
-    setRangeStart(0)
-    setRangeEnd(Math.max(0, orderedDates.length - 1))
-  }, [orderedDates.length])
-
   if (shots.length === 0) {
     return (
       <div className="rounded-2xl p-8 text-center" style={{ background: '#f5f0e8', border: '1px solid #e8dcc8' }}>
@@ -91,8 +86,11 @@ export default function ShotChart({ shots, teamColor }: Props) {
     )
   }
 
-  const safeStart = Math.min(rangeStart, rangeEnd)
-  const safeEnd = Math.max(rangeStart, rangeEnd)
+  const maxRangeIndex = Math.max(0, orderedDates.length - 1)
+  const normalizedRangeStart = Math.min(rangeStart, maxRangeIndex)
+  const normalizedRangeEnd = Math.min(rangeEnd, maxRangeIndex)
+  const safeStart = Math.min(normalizedRangeStart, normalizedRangeEnd)
+  const safeEnd = Math.max(normalizedRangeStart, normalizedRangeEnd)
   const startDate = orderedDates[safeStart] ?? null
   const endDate = orderedDates[safeEnd] ?? null
   const filteredShots = startDate && endDate

@@ -28,7 +28,47 @@ type MetricProgress = {
   highScore: number
 }
 
+type RoundState = {
+  key: string
+  round: GameRound | null
+  selection: 'higher' | 'lower' | null
+}
+
 const GAME_PROGRESS_STORAGE_KEY = 'wnba-games-higher-lower-progress'
+
+function getDefaultProgressByMetric() {
+  return {
+    pts: { score: 0, highScore: 0 },
+    reb: { score: 0, highScore: 0 },
+    ast: { score: 0, highScore: 0 },
+  } satisfies Record<GameMetricKey, MetricProgress>
+}
+
+function readStoredProgress() {
+  if (typeof window === 'undefined') return getDefaultProgressByMetric()
+  const stored = window.localStorage.getItem(GAME_PROGRESS_STORAGE_KEY)
+  if (!stored) return getDefaultProgressByMetric()
+
+  try {
+    const parsed = JSON.parse(stored) as Partial<Record<GameMetricKey, MetricProgress>>
+    return {
+      pts: {
+        score: Number.isFinite(parsed.pts?.score) ? parsed.pts!.score : 0,
+        highScore: Number.isFinite(parsed.pts?.highScore) ? parsed.pts!.highScore : 0,
+      },
+      reb: {
+        score: Number.isFinite(parsed.reb?.score) ? parsed.reb!.score : 0,
+        highScore: Number.isFinite(parsed.reb?.highScore) ? parsed.reb!.highScore : 0,
+      },
+      ast: {
+        score: Number.isFinite(parsed.ast?.score) ? parsed.ast!.score : 0,
+        highScore: Number.isFinite(parsed.ast?.highScore) ? parsed.ast!.highScore : 0,
+      },
+    } satisfies Record<GameMetricKey, MetricProgress>
+  } catch {
+    return getDefaultProgressByMetric()
+  }
+}
 
 const gameMetrics: GameMetric[] = [
   {
@@ -111,48 +151,20 @@ export default function GamesHub({ block, season, seasonType }: Props) {
   const players = useMemo(() => qualifyPlayers(block), [block])
   const advanceTimeoutRef = useRef<number | null>(null)
   const [metricKey, setMetricKey] = useState<GameMetricKey>('pts')
-  const [round, setRound] = useState<GameRound | null>(null)
-  const [progressByMetric, setProgressByMetric] = useState<Record<GameMetricKey, MetricProgress>>({
-    pts: { score: 0, highScore: 0 },
-    reb: { score: 0, highScore: 0 },
-    ast: { score: 0, highScore: 0 },
-  })
-  const [selection, setSelection] = useState<'higher' | 'lower' | null>(null)
+  const playersKey = useMemo(() => players.map(player => player.player_id).join(','), [players])
+  const contextKey = `${metricKey}:${playersKey}`
+  const [roundState, setRoundState] = useState<RoundState>({ key: '', round: null, selection: null })
+  const [progressByMetric, setProgressByMetric] = useState<Record<GameMetricKey, MetricProgress>>(() => readStoredProgress())
+  const resolvedRoundState = roundState.key === contextKey
+    ? roundState
+    : { key: contextKey, round: buildRound(players), selection: null }
+  const round = resolvedRoundState.round
+  const selection = resolvedRoundState.selection
 
   const metric = gameMetrics.find(entry => entry.key === metricKey) ?? gameMetrics[0]
   const metricProgress = progressByMetric[metricKey]
   const score = metricProgress?.score ?? 0
   const highScore = metricProgress?.highScore ?? 0
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const stored = window.localStorage.getItem(GAME_PROGRESS_STORAGE_KEY)
-    if (!stored) return
-
-    try {
-      const parsed = JSON.parse(stored) as Partial<Record<GameMetricKey, MetricProgress>>
-      setProgressByMetric({
-        pts: {
-          score: Number.isFinite(parsed.pts?.score) ? parsed.pts!.score : 0,
-          highScore: Number.isFinite(parsed.pts?.highScore) ? parsed.pts!.highScore : 0,
-        },
-        reb: {
-          score: Number.isFinite(parsed.reb?.score) ? parsed.reb!.score : 0,
-          highScore: Number.isFinite(parsed.reb?.highScore) ? parsed.reb!.highScore : 0,
-        },
-        ast: {
-          score: Number.isFinite(parsed.ast?.score) ? parsed.ast!.score : 0,
-          highScore: Number.isFinite(parsed.ast?.highScore) ? parsed.ast!.highScore : 0,
-        },
-      })
-    } catch {
-      setProgressByMetric({
-        pts: { score: 0, highScore: 0 },
-        reb: { score: 0, highScore: 0 },
-        ast: { score: 0, highScore: 0 },
-      })
-    }
-  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -172,9 +184,7 @@ export default function GamesHub({ block, season, seasonType }: Props) {
       window.clearTimeout(advanceTimeoutRef.current)
       advanceTimeoutRef.current = null
     }
-    setSelection(null)
-    setRound(buildRound(players))
-  }, [players, metricKey])
+  }, [contextKey])
 
   const accent = round ? getTeamColors(round.anchor.team) : getTeamColors('IND')
 
@@ -199,8 +209,11 @@ export default function GamesHub({ block, season, seasonType }: Props) {
 
   const handleGuess = (guess: 'higher' | 'lower') => {
     if (revealed && !gotItRight) {
-      setSelection(null)
-      setRound(buildRound(players, round.challenger))
+      setRoundState({
+        key: contextKey,
+        selection: null,
+        round: buildRound(players, round.challenger),
+      })
       return
     }
     if (revealed) return
@@ -208,7 +221,11 @@ export default function GamesHub({ block, season, seasonType }: Props) {
     const nextCorrect = isCorrectGuess(guess, anchorValue, challengerValue)
     const nextScore = nextCorrect ? score + 1 : 0
 
-    setSelection(guess)
+    setRoundState(current => ({
+      key: contextKey,
+      round: current.key === contextKey ? current.round : round,
+      selection: guess,
+    }))
     setProgressByMetric(current => {
       const currentMetric = current[metricKey] ?? { score: 0, highScore: 0 }
       return {
@@ -222,8 +239,11 @@ export default function GamesHub({ block, season, seasonType }: Props) {
 
     if (nextCorrect) {
       advanceTimeoutRef.current = window.setTimeout(() => {
-        setSelection(null)
-        setRound(buildRound(players, round.challenger))
+        setRoundState({
+          key: contextKey,
+          selection: null,
+          round: buildRound(players, round.challenger),
+        })
         advanceTimeoutRef.current = null
       }, 700)
     }

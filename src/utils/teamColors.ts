@@ -1,3 +1,5 @@
+import { normalizeTeamCode } from './teamCodes'
+
 // WNBA team color palettes
 // primary: main team color, secondary: accent, bg: vibrant background tint
 
@@ -14,6 +16,8 @@ export const teamColors: Record<string, { primary: string; secondary: string; bg
   NYL: { primary: '#086b37', secondary: '#fdb927', bg: '#d1fae5' },
   PHX: { primary: '#201747', secondary: '#e56020', bg: '#fed7c5' },
   SEA: { primary: '#2c5234', secondary: '#fee11a', bg: '#d1fae5' },
+  PDX: { primary: '#1d1160', secondary: '#e03a3e', bg: '#fce7f3' },
+  TOR: { primary: '#000000', secondary: '#d81f32', bg: '#f3f4f6' },
   UNI: { primary: '#f26522', secondary: '#0c2340', bg: '#ffedd5' },
   WAS: { primary: '#e31837', secondary: '#002b5c', bg: '#fde2e2' },
 }
@@ -22,7 +26,7 @@ export const teamColors: Record<string, { primary: string; secondary: string; bg
 const fallback = { primary: '#334155', secondary: '#64748b', bg: '#f8fafc' }
 
 export function getTeamColors(abbr: string) {
-  return teamColors[abbr] || fallback
+  return teamColors[normalizeTeamCode(abbr)] || fallback
 }
 
 function hexToRgb(hex: string) {

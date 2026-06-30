@@ -4,6 +4,7 @@ import type { SeasonBlock } from '../types'
 import { getTeamColors } from '../utils/teamColors'
 import { buildTeamProfiles, buildTeamRankings, predictMatchup } from '../utils/teamPrediction'
 import { loadTeamPredictions } from '../utils/dataValidation'
+import { getDisplayTeamCode } from '../utils/teamCodes'
 
 interface Props {
   block: SeasonBlock | null
@@ -47,15 +48,11 @@ export default function NextGamePrediction({ block }: Props) {
 
   const focusTeam = teamProfiles.find(team => team.team === selectedTeam) ?? null
   const focusColors = getTeamColors(selectedTeam)
-  const [lineupIds, setLineupIds] = useState<number[]>([])
-
-  useEffect(() => {
-    if (!focusTeam) {
-      setLineupIds([])
-      return
-    }
-    setLineupIds(focusTeam.players.slice(0, 5).map(player => player.player_id))
-  }, [focusTeam])
+  const [lineupIdsByTeam, setLineupIdsByTeam] = useState<Record<string, number[]>>({})
+  const lineupIds = useMemo(() => {
+    if (!focusTeam) return []
+    return lineupIdsByTeam[focusTeam.team] ?? focusTeam.players.slice(0, 5).map(player => player.player_id)
+  }, [focusTeam, lineupIdsByTeam])
 
   const rosterSignals = useMemo(() => {
     if (!focusTeam || !block) return null
@@ -106,10 +103,10 @@ export default function NextGamePrediction({ block }: Props) {
       {
         label: 'Immediate Outlook',
         title: bestMatchup
-          ? `${selectedTeam} vs ${bestMatchup.opponent.team}`
-          : `${selectedTeam} snapshot`,
+          ? `${getDisplayTeamCode(selectedTeam)} vs ${getDisplayTeamCode(bestMatchup.opponent.team)}`
+          : `${getDisplayTeamCode(selectedTeam)} snapshot`,
         detail: bestMatchup
-          ? `${selectedTeam} projects at ${bestMatchup.rfPct.toFixed(0)}% in the strongest current matchup view.`
+          ? `${getDisplayTeamCode(selectedTeam)} projects at ${bestMatchup.rfPct.toFixed(0)}% in the strongest current matchup view.`
           : 'No matchup board available yet.',
         accent: focusColors.primary,
       },
@@ -163,7 +160,7 @@ export default function NextGamePrediction({ block }: Props) {
           >
             {teamProfiles.map(team => (
               <option key={team.team} value={team.team}>
-                {team.team}
+                {getDisplayTeamCode(team.team)}
               </option>
             ))}
           </select>
@@ -204,15 +201,17 @@ export default function NextGamePrediction({ block }: Props) {
               accent={focusColors.primary}
               lineupIds={lineupIds}
               onTogglePlayer={playerId => {
-                setLineupIds(current => {
-                  if (current.includes(playerId)) {
-                    if (current.length <= 3) return current
-                    return current.filter(id => id !== playerId)
+                if (!focusTeam) return
+                setLineupIdsByTeam(current => {
+                  const existing = current[focusTeam.team] ?? focusTeam.players.slice(0, 5).map(player => player.player_id)
+                  const next = existing.includes(playerId)
+                    ? (existing.length <= 3 ? existing : existing.filter(id => id !== playerId))
+                    : (existing.length >= 5 ? [...existing.slice(1), playerId] : [...existing, playerId])
+
+                  return {
+                    ...current,
+                    [focusTeam.team]: next,
                   }
-                  if (current.length >= 5) {
-                    return [...current.slice(1), playerId]
-                  }
-                  return [...current, playerId]
                 })
               }}
               lab={lineupLab}
@@ -271,18 +270,18 @@ export default function NextGamePrediction({ block }: Props) {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: row.opponentColors.primary }} />
-                    <div className="text-base font-semibold text-slate-900 truncate">{row.opponent.team}</div>
+                    <div className="text-base font-semibold text-slate-900 truncate">{getDisplayTeamCode(row.opponent.team)}</div>
                   </div>
                 </div>
 
                 <GaugeColumn
-                  label={row.weightedPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
+                  label={row.weightedPct >= 50 ? `${getDisplayTeamCode(selectedTeam)} favored` : `${getDisplayTeamCode(row.opponent.team)} favored`}
                   pct={row.weightedPct}
                   color={focusColors.primary}
                 />
 
                 <GaugeColumn
-                  label={row.rfPct >= 50 ? `${selectedTeam} favored` : `${row.opponent.team} favored`}
+                  label={row.rfPct >= 50 ? `${getDisplayTeamCode(selectedTeam)} favored` : `${getDisplayTeamCode(row.opponent.team)} favored`}
                   pct={row.rfPct}
                   color={focusColors.secondary}
                 />
@@ -838,7 +837,15 @@ function analyzeLineupSynergy(team: NonNullable<ReturnType<typeof buildTeamProfi
     .sort((a, b) => b.score - a.score)
     .filter((entry, index, all) => all.findIndex(other => other.overlapKey === entry.overlapKey) === index && index < 3)
     .slice(0, 3)
-    .map(({ overlapKey: _overlapKey, lineup: _lineup, ...entry }) => entry)
+    .map(entry => ({
+      score: entry.score,
+      guards: entry.guards,
+      wings: entry.wings,
+      bigs: entry.bigs,
+      highlights: entry.highlights,
+      balanceLabel: entry.balanceLabel,
+      names: entry.names,
+    }))
 }
 
 function scoreLineupProfile(

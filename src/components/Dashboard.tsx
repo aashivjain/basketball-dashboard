@@ -20,6 +20,7 @@ import { buildPlayerImpactIndex } from '../utils/playerImpact'
 import { loadDashboardData } from '../utils/dataValidation'
 import { useDashboardState, usePlayerSelectionState } from '../hooks/useDashboardState'
 import { usePlayerRouteState } from '../hooks/usePlayerRouteState'
+import { getDisplayTeamCode, getTeamSearchAliases } from '../utils/teamCodes'
 import {
   getAvailableSeasons,
   getGrowthData,
@@ -32,23 +33,6 @@ import {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
-}
-
-const teamSearchAliases: Record<string, string[]> = {
-  ATL: ['atl', 'atlanta', 'dream'],
-  CHI: ['chi', 'chicago', 'sky'],
-  CON: ['con', 'connecticut', 'sun'],
-  DAL: ['dal', 'dallas', 'wings'],
-  GS: ['gs', 'golden state', 'goldenstate', 'valkyries'],
-  IND: ['ind', 'indiana', 'fever'],
-  LAS: ['las', 'los angeles', 'losangeles', 'sparks'],
-  LVA: ['lva', 'las vegas', 'lasvegas', 'vegas', 'aces'],
-  MIN: ['min', 'minnesota', 'lynx'],
-  NYL: ['nyl', 'new york', 'newyork', 'liberty', 'ny'],
-  PHX: ['phx', 'phoenix', 'mercury'],
-  SEA: ['sea', 'seattle', 'storm'],
-  UNI: ['uni', 'unrivaled'],
-  WAS: ['was', 'washington', 'mystics', 'dc'],
 }
 
 export default function Dashboard() {
@@ -113,7 +97,8 @@ export default function Dashboard() {
   const searchableTeams = useMemo(
     () => playersByTeam.map(([team]) => ({
       team,
-      aliases: teamSearchAliases[team] ?? [team.toLowerCase()],
+      displayTeam: getDisplayTeamCode(team),
+      aliases: getTeamSearchAliases(team),
     })),
     [playersByTeam]
   )
@@ -389,6 +374,7 @@ export default function Dashboard() {
 
 type QuickSearchTeamOption = {
   team: string
+  displayTeam: string
   aliases: string[]
 }
 
@@ -427,7 +413,7 @@ function QuickSearch({
     return allPlayers
       .filter(player => {
         const name = player.name.toLowerCase()
-        const team = player.team.toLowerCase()
+        const team = getDisplayTeamCode(player.team).toLowerCase()
         return name.includes(normalizedQuery) || team.includes(normalizedQuery)
       })
       .sort((a, b) => {
@@ -444,15 +430,15 @@ function QuickSearch({
 
     return teams
       .filter(teamOption => {
-        const teamLabel = teamOption.team.toLowerCase()
+        const teamLabel = teamOption.displayTeam.toLowerCase()
         return teamLabel.includes(normalizedQuery)
           || teamOption.aliases.some(alias => alias.includes(normalizedQuery))
       })
       .sort((a, b) => {
-        const aStarts = a.aliases.some(alias => alias.startsWith(normalizedQuery)) || a.team.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
-        const bStarts = b.aliases.some(alias => alias.startsWith(normalizedQuery)) || b.team.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
+        const aStarts = a.aliases.some(alias => alias.startsWith(normalizedQuery)) || a.displayTeam.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
+        const bStarts = b.aliases.some(alias => alias.startsWith(normalizedQuery)) || b.displayTeam.toLowerCase().startsWith(normalizedQuery) ? 1 : 0
         if (aStarts !== bStarts) return bStarts - aStarts
-        return a.team.localeCompare(b.team)
+        return a.displayTeam.localeCompare(b.displayTeam)
       })
       .slice(0, 6)
   }, [hasTypedQuery, normalizedQuery, teams])
@@ -463,9 +449,7 @@ function QuickSearch({
   ]), [playerMatches, teamMatches])
   const hasResults = items.length > 0
 
-  useEffect(() => {
-    setActiveIndex(0)
-  }, [normalizedQuery, isOpen])
+  const safeActiveIndex = hasResults ? Math.min(activeIndex, items.length - 1) : 0
 
   const handlePlayerSelect = (playerId: number) => {
     setQuery('')
@@ -494,9 +478,13 @@ function QuickSearch({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
+            setActiveIndex(0)
             setIsOpen(true)
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setActiveIndex(0)
+            setIsOpen(true)
+          }}
           onKeyDown={(event) => {
             if (!isOpen && (event.key === 'ArrowDown' || event.key === 'Enter')) {
               setIsOpen(true)
@@ -516,7 +504,7 @@ function QuickSearch({
               setActiveIndex(current => (current - 1 + items.length) % items.length)
             } else if (event.key === 'Enter') {
               event.preventDefault()
-              const activeItem = items[activeIndex]
+              const activeItem = items[safeActiveIndex]
               if (!activeItem) return
               if (activeItem.type === 'team') handleTeamSelect(activeItem.option.team)
               if (activeItem.type === 'player') handlePlayerSelect(activeItem.option.player_id)
@@ -558,10 +546,10 @@ function QuickSearch({
                       type="button"
                       onClick={() => handleTeamSelect(teamOption.team)}
                       className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50"
-                      style={{ background: activeIndex === itemIndex ? '#f8fafc' : 'transparent' }}
+                      style={{ background: safeActiveIndex === itemIndex ? '#f8fafc' : 'transparent' }}
                     >
                       <span>
-                        <span className="block text-sm font-medium text-slate-800">{teamOption.team}</span>
+                        <span className="block text-sm font-medium text-slate-800">{teamOption.displayTeam}</span>
                       </span>
                       <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: tc.bg, color: tc.primary }}>
                         Open
@@ -587,11 +575,11 @@ function QuickSearch({
                       type="button"
                       onClick={() => handlePlayerSelect(playerOption.player_id)}
                       className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50"
-                      style={{ background: activeIndex === itemIndex ? '#f8fafc' : 'transparent' }}
+                      style={{ background: safeActiveIndex === itemIndex ? '#f8fafc' : 'transparent' }}
                     >
                       <span>
                         <span className="block text-sm font-medium text-slate-800">{playerOption.name}</span>
-                        <span className="block text-xs text-slate-500">{playerOption.team}</span>
+                        <span className="block text-xs text-slate-500">{getDisplayTeamCode(playerOption.team)}</span>
                       </span>
                       <span
                         className="rounded-full px-2.5 py-1 text-[11px] font-semibold"

@@ -1,47 +1,10 @@
 import type { SeasonBlock } from '../types'
 import { buildTeamProfiles, buildTeamRankings } from '../utils/teamPrediction'
+import { getDisplayTeamCode, normalizeTeamCode } from '../utils/teamCodes'
 
 interface Props {
   block: SeasonBlock | null
   season: string
-}
-
-type ConferenceName = 'Eastern Conference' | 'Western Conference'
-
-type StandingsRow = {
-  team: string
-  displayTeam: string
-  wins: number
-  losses: number
-  pct: string
-  gb: string
-  conference?: ConferenceName
-  overallRank?: number
-}
-
-const CONFERENCE_BY_TEAM: Record<string, ConferenceName> = {
-  ATL: 'Eastern Conference',
-  CHI: 'Eastern Conference',
-  CON: 'Eastern Conference',
-  IND: 'Eastern Conference',
-  NYL: 'Eastern Conference',
-  TOR: 'Eastern Conference',
-  WAS: 'Eastern Conference',
-  DAL: 'Western Conference',
-  GS: 'Western Conference',
-  GSV: 'Western Conference',
-  LAS: 'Western Conference',
-  LVA: 'Western Conference',
-  MIN: 'Western Conference',
-  PDX: 'Western Conference',
-  POR: 'Western Conference',
-  PHX: 'Western Conference',
-  SEA: 'Western Conference',
-}
-
-function normalizeTeamCode(team: string) {
-  if (team === 'POR') return 'PDX'
-  return team
 }
 
 function formatWinningPct(wins: number, losses: number) {
@@ -49,12 +12,6 @@ function formatWinningPct(wins: number, losses: number) {
   if (totalGames === 0) return '.000'
   const pct = (wins / totalGames).toFixed(3)
   return pct.startsWith('0') ? pct.slice(1) : pct
-}
-
-function formatGamesBack(teamWins: number, teamLosses: number, leaderWins: number, leaderLosses: number) {
-  const gamesBack = ((leaderWins - teamWins) + (teamLosses - leaderLosses)) / 2
-  if (gamesBack <= 0) return '-'
-  return Number.isInteger(gamesBack) ? String(gamesBack) : gamesBack.toFixed(1)
 }
 
 function buildOverallStandings(block: SeasonBlock | null) {
@@ -88,7 +45,7 @@ function buildOverallStandings(block: SeasonBlock | null) {
       return {
         rank: rankByTeam.get(profile.team) ?? 999,
         team: profile.team,
-        displayTeam: normalizedTeam,
+        displayTeam: getDisplayTeamCode(normalizedTeam),
         wins: profile.wins,
         losses: profile.losses,
         pct: formatWinningPct(profile.wins, profile.losses),
@@ -98,60 +55,6 @@ function buildOverallStandings(block: SeasonBlock | null) {
       }
     })
     .sort((a, b) => a.rank - b.rank)
-}
-
-function buildConferenceStandings(block: SeasonBlock | null) {
-  if (!block) return []
-
-  const profiles = buildTeamProfiles(block)
-  const rankByTeam = buildTeamRankings(profiles)
-  const grouped = new Map<ConferenceName, StandingsRow[]>()
-
-  profiles.forEach(profile => {
-    const normalizedTeam = normalizeTeamCode(profile.team)
-    const conference = CONFERENCE_BY_TEAM[normalizedTeam]
-    if (!conference) return
-
-    if (!grouped.has(conference)) {
-      grouped.set(conference, [])
-    }
-
-    grouped.get(conference)!.push({
-      team: profile.team,
-      displayTeam: normalizedTeam,
-      wins: profile.wins,
-      losses: profile.losses,
-      pct: formatWinningPct(profile.wins, profile.losses),
-      gb: '-',
-    })
-  })
-
-  return (['Eastern Conference', 'Western Conference'] as const)
-    .map(conference => {
-      const rows = [...(grouped.get(conference) ?? [])].sort((a, b) => {
-        if (b.wins !== a.wins) return b.wins - a.wins
-        if (a.losses !== b.losses) return a.losses - b.losses
-        return a.displayTeam.localeCompare(b.displayTeam)
-      })
-
-      const leader = rows[0]
-      const entries = leader
-        ? rows.map(row => ({
-            ...row,
-            overallRank: rankByTeam.get(row.team) ?? undefined,
-            gb: formatGamesBack(row.wins, row.losses, leader.wins, leader.losses),
-          }))
-        : rows.map(row => ({
-            ...row,
-            overallRank: rankByTeam.get(row.team) ?? undefined,
-          }))
-
-      return {
-        conference,
-        entries,
-      }
-    })
-    .filter(group => group.entries.length > 0)
 }
 
 export default function LeagueHub({ block, season }: Props) {
