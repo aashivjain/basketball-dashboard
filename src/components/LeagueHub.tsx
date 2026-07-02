@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import type { SeasonBlock } from '../types'
 import { buildTeamProfiles, buildTeamRankings } from '../utils/teamPrediction'
 import { getDisplayTeamCode, normalizeTeamCode } from '../utils/teamCodes'
@@ -58,6 +59,7 @@ function buildOverallStandings(block: SeasonBlock | null) {
 }
 
 export default function LeagueHub({ block, season }: Props) {
+  const navigate = useNavigate()
   const standings = buildOverallStandings(block)
 
   return (
@@ -92,19 +94,29 @@ export default function LeagueHub({ block, season }: Props) {
 
           <div className="divide-y divide-slate-100">
             {standings.map(entry => (
-              <div
+              <button
                 key={entry.team}
-                className="grid grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 px-4 py-3 items-center text-sm min-w-min hover:bg-slate-50 transition-colors"
+                type="button"
+                onClick={() => {
+                  navigate(`/teams?team=${encodeURIComponent(entry.team)}`)
+                  if (typeof window !== 'undefined') {
+                    window.requestAnimationFrame(() => {
+                      window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+                    })
+                  }
+                }}
+                className="grid w-full grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 px-4 py-3 items-center text-left text-sm min-w-min hover:bg-slate-50 transition-colors cursor-pointer"
+                title={`Open ${entry.displayTeam} team dashboard`}
               >
                 <div className="font-semibold text-slate-400 text-center">{entry.rank}</div>
-                <div className="font-semibold text-slate-950 min-w-0">{entry.displayTeam}</div>
+                <div className="font-semibold text-slate-950 min-w-0 underline-offset-4 hover:underline">{entry.displayTeam}</div>
                 <div className="text-center text-slate-700">{entry.wins}</div>
                 <div className="text-center text-slate-700">{entry.losses}</div>
                 <div className="text-center text-slate-700 font-medium">{entry.pct}</div>
                 <div className="text-center text-slate-700">{entry.gb}</div>
                 <div className="text-center text-slate-600 text-xs">{entry.homeRecord}</div>
                 <div className="text-center text-slate-600 text-xs">{entry.awayRecord}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
