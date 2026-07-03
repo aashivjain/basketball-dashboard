@@ -190,7 +190,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
           </div>
 
           <div className="mt-4">
-            <div className="relative px-1">
+            <div className="relative px-1 py-1">
               <div className="absolute left-1 right-1 top-[13px] h-[3px] rounded-full bg-slate-200" />
               <div
                 className="absolute top-[13px] h-[3px] rounded-full"
@@ -208,7 +208,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
                 value={safeStart}
                 onChange={event => setResolvedRange(Number(event.target.value), safeEnd, 'start')}
                 onPointerDown={() => setActiveHandle('start')}
-                className="timeline-thumb relative z-10 w-full appearance-none bg-transparent"
+                className="timeline-thumb relative z-10 w-full appearance-none bg-transparent cursor-ew-resize"
                 style={{ accentColor: teamColor.primary, zIndex: activeHandle === 'start' ? 20 : 10 }}
               />
               <input
@@ -218,7 +218,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
                 value={safeEnd}
                 onChange={event => setResolvedRange(safeStart, Number(event.target.value), 'end')}
                 onPointerDown={() => setActiveHandle('end')}
-                className="timeline-thumb relative -mt-6 w-full appearance-none bg-transparent"
+                className="timeline-thumb relative -mt-6 w-full appearance-none bg-transparent cursor-ew-resize"
                 style={{ accentColor: teamColor.primary, zIndex: activeHandle === 'end' ? 20 : 15 }}
               />
             </div>
