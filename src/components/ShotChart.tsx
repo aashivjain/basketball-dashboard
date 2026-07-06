@@ -67,6 +67,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const [hoveredZone, setHoveredZone] = useState<string | null>(null)
   const [selectedZone, setSelectedZone] = useState<string | null>(null)
   const [hoveredShot, setHoveredShot] = useState<{ shot: Shot; x: number; y: number } | null>(null)
+  const [activeHandle, setActiveHandle] = useState<'start' | 'end'>('end')
 
   const orderedDates = useMemo(() => {
     return Array.from(new Set(
@@ -135,6 +136,24 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const displayMade = displayShots.filter(s => s.made)
   const displayMissed = displayShots.filter(s => !s.made)
 
+  const setResolvedRange = (nextStart: number, nextEnd: number, preferredHandle: 'start' | 'end') => {
+    const clampedStart = Math.max(0, Math.min(nextStart, maxRangeIndex))
+    const clampedEnd = Math.max(0, Math.min(nextEnd, maxRangeIndex))
+
+    if (clampedStart <= clampedEnd) {
+      setRangeStart(clampedStart)
+      setRangeEnd(clampedEnd)
+      setActiveHandle(preferredHandle)
+      return
+    }
+
+    setRangeStart(clampedEnd)
+    setRangeEnd(clampedStart)
+    setActiveHandle(preferredHandle === 'start' ? 'end' : 'start')
+  }
+
+  const isSingleDayRange = safeStart === safeEnd
+
   return (
     <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
       <div className="flex items-center justify-between mb-3">
@@ -187,18 +206,20 @@ export default function ShotChart({ shots, teamColor }: Props) {
                 min={0}
                 max={Math.max(0, orderedDates.length - 1)}
                 value={safeStart}
-                onChange={event => setRangeStart(Number(event.target.value))}
+                onChange={event => setResolvedRange(Number(event.target.value), safeEnd, 'start')}
+                onPointerDown={() => setActiveHandle('start')}
                 className="timeline-thumb relative z-10 w-full appearance-none bg-transparent"
-                style={{ accentColor: teamColor.primary }}
+                style={{ accentColor: teamColor.primary, zIndex: activeHandle === 'start' ? 20 : 10 }}
               />
               <input
                 type="range"
                 min={0}
                 max={Math.max(0, orderedDates.length - 1)}
                 value={safeEnd}
-                onChange={event => setRangeEnd(Number(event.target.value))}
-                className="timeline-thumb relative z-20 -mt-6 w-full appearance-none bg-transparent"
-                style={{ accentColor: teamColor.primary }}
+                onChange={event => setResolvedRange(safeStart, Number(event.target.value), 'end')}
+                onPointerDown={() => setActiveHandle('end')}
+                className="timeline-thumb relative -mt-6 w-full appearance-none bg-transparent"
+                style={{ accentColor: teamColor.primary, zIndex: activeHandle === 'end' ? 20 : 15 }}
               />
             </div>
 
@@ -208,13 +229,27 @@ export default function ShotChart({ shots, teamColor }: Props) {
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold">
+                Start: {formatShortDate(startDate)}
+              </span>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold">
+                End: {formatShortDate(endDate)}
+              </span>
+              {isSingleDayRange && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700">
+                  Single game date
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
             {buildPresets(orderedDates.length).map(preset => (
               <button
                 key={preset.label}
                 onClick={() => {
-                  setRangeStart(preset.start)
-                  setRangeEnd(preset.end)
+                  setResolvedRange(preset.start, preset.end, 'end')
                 }}
                 className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
                 style={{
@@ -226,6 +261,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
                 {preset.label}
               </button>
             ))}
+            </div>
           </div>
         </div>
       )}
