@@ -7,9 +7,17 @@ How to refresh WNBA game data when new games have been played.
 Run this when new games finish:
 
 ```powershell
-python scripts/fetch_game_logs.py      # Get latest games from API
+python scripts/refresh_current_season.py      # Refresh current-season stats, changed game logs, forecasts, and news
 python scripts/migrate_wnba_to_db.py   # Insert into database
 python scripts/verify_migration.py     # Validate data integrity
+```
+
+Fast option if you want to skip shot-chart refreshes:
+
+```powershell
+python scripts/refresh_current_season.py --fast
+python scripts/migrate_wnba_to_db.py
+python scripts/verify_migration.py
 ```
 
 Then restart backend:
@@ -24,7 +32,9 @@ Frontend will automatically show new data (no restart needed).
 
 | Script | Purpose | Time | Output |
 |--------|---------|------|--------|
-| `fetch_game_logs.py` | Downloads WNBA games from API, updates `src/data/wnba_data.json` | 5-10s | Updated JSON file |
+| `refresh_current_season.py` | Recommended updater after new games; refreshes player stats, re-fetches changed player game logs, retrains forecasts, and refreshes news | 1-5 min | Updated JSON file |
+| `refresh_current_season.py --fast` | Same as above, but skips shot-chart refreshes | 30-90s | Updated JSON file |
+| `fetch_game_logs.py` | Backfill/bootstrap helper for missing regular-season logs; not the preferred daily refresh command | 5-10s | Updated JSON file |
 | `migrate_wnba_to_db.py` | Validates JSON, inserts new records into SQLite database | 10-15s | Database updated, migration log |
 | `verify_migration.py` | Confirms 100% match between JSON and database | 5s | Validation report |
 
@@ -60,7 +70,7 @@ npm start
 Create file `update_data.ps1`:
 ```powershell
 cd C:\Users\YourName\basketball-dashboard
-python scripts/fetch_game_logs.py
+python scripts/refresh_current_season.py
 python scripts/migrate_wnba_to_db.py
 python scripts/verify_migration.py
 
@@ -98,7 +108,7 @@ jobs:
           python-version: '3.10'
       - run: |
           python -m pip install -r requirements.txt
-          python scripts/fetch_game_logs.py
+          python scripts/refresh_current_season.py
           python scripts/migrate_wnba_to_db.py
           python scripts/verify_migration.py
       - uses: stefanzweifel/git-auto-commit-action@v4
@@ -127,6 +137,10 @@ Expected output: `9/9 tests passing`
 - WNBA season might be in off-season
 - Check if games actually happened: NBA.com schedule
 - Manually verify JSON was updated: `git diff src/data/wnba_data.json`
+
+**When should I use `fetch_game_logs.py`?**
+- Use it only for backfilling or repairing missing regular-season logs in the JSON file
+- For normal day-to-day updates after new games are played, use `refresh_current_season.py`
 
 **"Migration failed - data mismatch"**
 - Database might be corrupted: Delete `backend/basketball.db` and reinitialize

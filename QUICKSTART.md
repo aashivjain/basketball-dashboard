@@ -28,12 +28,20 @@ Both terminals stay open. Ctrl+C stops either one independently.
 When new games have played:
 
 ```powershell
-python scripts/fetch_game_logs.py
+python scripts/refresh_current_season.py
 python scripts/migrate_wnba_to_db.py
 python scripts/verify_migration.py
 ```
 
 Restart backend (Ctrl+C in Terminal 1, then `npm start`). Frontend auto-refreshes.
+
+If you want a quicker update that skips shot chart refreshes:
+
+```powershell
+python scripts/refresh_current_season.py --fast
+python scripts/migrate_wnba_to_db.py
+python scripts/verify_migration.py
+```
 
 ## Next Steps
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Shot } from '../types'
 
 interface Props {
@@ -78,6 +78,12 @@ export default function ShotChart({ shots, teamColor }: Props) {
   }, [shots])
   const [rangeStart, setRangeStart] = useState(0)
   const [rangeEnd, setRangeEnd] = useState(Math.max(0, orderedDates.length - 1))
+
+  useEffect(() => {
+    setRangeStart(0)
+    setRangeEnd(Math.max(0, orderedDates.length - 1))
+    setActiveHandle('end')
+  }, [orderedDates.length])
 
   if (shots.length === 0) {
     return (

@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS game_logs;
 DROP TABLE IF EXISTS season_stats;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS sync_log;
 
 -- ============================================================================
 -- TEAMS

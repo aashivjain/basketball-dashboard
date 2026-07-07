@@ -99,9 +99,14 @@ All queries are parameterized (SQL injection protected)
 
 **Step 1: Update source data**
 ```powershell
-python scripts/fetch_game_logs.py
+python scripts/refresh_current_season.py
 ```
-This updates src/data/wnba_data.json with new games
+This is the recommended routine update command after new games are played. It refreshes current-season player stats, re-fetches game logs for players whose GP changed, optionally refreshes shot charts, retrains forecasts, refreshes news, and updates `src/data/wnba_data.json`.
+
+For a quicker refresh that skips shot charts:
+```powershell
+python scripts/refresh_current_season.py --fast
+```
 
 **Step 2: Migrate to database**
 ```powershell
@@ -135,6 +140,9 @@ python scripts/verify_migration.py       # Verify
 python scripts/test_api.py               # Test API
 # Then restart backend and frontend
 ```
+
+### When To Use `fetch_game_logs.py`
+`fetch_game_logs.py` is a backfill/bootstrap helper for missing regular-season logs. It is not the preferred command for normal day-to-day updates after new games are played. For routine refreshes, use `refresh_current_season.py`.
 
 ### Automating Updates (Future)
 
