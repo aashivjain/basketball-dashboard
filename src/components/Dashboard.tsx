@@ -448,6 +448,7 @@ function QuickSearch({
     ...playerMatches.map(option => ({ key: `player-${option.player_id}`, type: 'player' as const, option })),
   ]), [playerMatches, teamMatches])
   const hasResults = items.length > 0
+  const showDropdown = isOpen && (hasTypedQuery || hasResults)
 
   const safeActiveIndex = hasResults ? Math.min(activeIndex, items.length - 1) : 0
 
@@ -479,15 +480,17 @@ function QuickSearch({
           onChange={(e) => {
             setQuery(e.target.value)
             setActiveIndex(0)
-            setIsOpen(true)
+            setIsOpen(e.target.value.trim().length > 0)
           }}
           onFocus={() => {
-            setActiveIndex(0)
-            setIsOpen(true)
+            if (query.trim().length > 0) {
+              setActiveIndex(0)
+              setIsOpen(true)
+            }
           }}
           onKeyDown={(event) => {
             if (!isOpen && (event.key === 'ArrowDown' || event.key === 'Enter')) {
-              setIsOpen(true)
+              if (query.trim().length > 0) setIsOpen(true)
               return
             }
 
@@ -513,22 +516,45 @@ function QuickSearch({
             }
           }}
           aria-label="Quick search"
-          placeholder="Search players, teams, or pages"
-          className="w-full bg-transparent text-sm text-slate-700 outline-none"
+          placeholder="Search players or teams"
+          className="search-input w-full bg-transparent text-sm text-slate-700 outline-none"
         />
-        <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 sm:inline-flex">
-          Search
-        </span>
+        {hasTypedQuery ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('')
+              setIsOpen(false)
+              setActiveIndex(0)
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300 hover:text-slate-600"
+            aria-label="Clear search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        ) : (
+          <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 sm:inline-flex">
+            Find
+          </span>
+        )}
       </div>
 
-      {isOpen && (
+      {showDropdown && (
         <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)]">
           <div className="border-b border-slate-100 px-4 py-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Quick Search</div>
-            <div className="mt-1 text-xs text-slate-500">
-              {hasTypedQuery
-                ? 'Search across players and teams.'
-                : 'Start typing a player or team name.'}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Search</div>
+                <div className="mt-1 text-xs text-slate-500">Players and teams, with team-name aliases too.</div>
+              </div>
+              {hasTypedQuery && (
+                <div className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {items.length} result{items.length === 1 ? '' : 's'}
+                </div>
+              )}
             </div>
           </div>
           <div className="max-h-[min(65vh,30rem)] overflow-y-auto px-3 py-3">
@@ -545,15 +571,15 @@ function QuickSearch({
                       key={teamOption.team}
                       type="button"
                       onClick={() => handleTeamSelect(teamOption.team)}
-                      className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50"
+                      onMouseEnter={() => setActiveIndex(itemIndex)}
+                      className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2.5 text-left transition hover:bg-slate-50"
                       style={{ background: safeActiveIndex === itemIndex ? '#f8fafc' : 'transparent' }}
                     >
-                      <span>
+                      <span className="min-w-0">
                         <span className="block text-sm font-medium text-slate-800">{teamOption.displayTeam}</span>
+                        <span className="block text-[11px] text-slate-500">Team</span>
                       </span>
-                      <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: tc.bg, color: tc.primary }}>
-                        Open
-                      </span>
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: tc.primary }} />
                     </button>
                   )
                 })}
@@ -574,26 +600,22 @@ function QuickSearch({
                       key={playerOption.player_id}
                       type="button"
                       onClick={() => handlePlayerSelect(playerOption.player_id)}
-                      className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left transition hover:bg-slate-50"
+                      onMouseEnter={() => setActiveIndex(itemIndex)}
+                      className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2.5 text-left transition hover:bg-slate-50"
                       style={{ background: safeActiveIndex === itemIndex ? '#f8fafc' : 'transparent' }}
                     >
-                      <span>
+                      <span className="min-w-0">
                         <span className="block text-sm font-medium text-slate-800">{playerOption.name}</span>
                         <span className="block text-xs text-slate-500">{getDisplayTeamCode(playerOption.team)}</span>
                       </span>
-                      <span
-                        className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                        style={{ background: tc.bg, color: tc.primary }}
-                      >
-                        Open
-                      </span>
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: tc.primary }} />
                     </button>
                   )
                 })}
               </div>
             ) : (
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                No matches found for "{query.trim()}".
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                No players or teams found for "{query.trim()}".
               </div>
             )}
           </div>
