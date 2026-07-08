@@ -8,7 +8,7 @@ export const teamColors: Record<string, { primary: string; secondary: string; bg
   CHI: { primary: '#418fde', secondary: '#c8102e', bg: '#dbeafe' },
   CON: { primary: '#002d62', secondary: '#c4d600', bg: '#dce6f5' },
   DAL: { primary: '#002b5c', secondary: '#c4d600', bg: '#dce5f0' },
-  GS: { primary: '#1d428a', secondary: '#ffc72c', bg: '#fef3c7' },
+  GS: { primary: '#5b2a86', secondary: '#8b5fbf', bg: '#f3e8ff' },
   IND: { primary: '#002d62', secondary: '#e03a3e', bg: '#fde2e2' },
   LAS: { primary: '#552583', secondary: '#fdb927', bg: '#ede9fe' },
   LVA: { primary: '#1a1a1a', secondary: '#c8102e', bg: '#e8e8e8' },
