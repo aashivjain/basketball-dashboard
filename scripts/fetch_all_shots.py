@@ -1,6 +1,6 @@
 """
 Fetch shot chart data for all WNBA players across all seasons.
-Adds shot_charts keyed by player_id to each season's regular_season block.
+Adds shot_charts keyed by player_id to both regular_season and playoffs blocks.
 Usage: python fetch_all_shots.py [season]
   If season is omitted, fetches for all available seasons.
 """
@@ -23,14 +23,14 @@ def write_json_atomic(path, payload, *, indent=None):
     temp_path.replace(path)
 
 
-def fetch_shot_chart(player_id, player_name, season, team_id=0):
+def fetch_shot_chart(player_id, player_name, season, season_type="Regular Season", team_id=0):
     for attempt in range(3):
         try:
             shots = shotchartdetail.ShotChartDetail(
                 team_id=team_id,
                 player_id=player_id,
                 season_nullable=season,
-                season_type_all_star="Regular Season",
+                season_type_all_star=season_type,
                 league_id=WNBA_LEAGUE_ID,
                 context_measure_simple="FGA",
                 timeout=30,
@@ -61,20 +61,21 @@ def fetch_shot_chart(player_id, player_name, season, team_id=0):
                 raise
 
 
-def fetch_season(data, season):
+def fetch_block_shots(data, season, block_key, season_type):
     season_data = data["seasons"].get(season)
     if not season_data:
         print(f"  No {season} season data found, skipping")
         return
 
-    all_players = season_data["regular_season"].get("all_players", [])
+    block = season_data.get(block_key, {})
+    all_players = block.get("all_players", [])
     if not all_players:
-        print(f"  No players in {season}, skipping")
+        print(f"  No players in {season} {block_key}, skipping")
         return
 
-    print(f"\n  === {season} Regular Season: {len(all_players)} players ===")
+    print(f"\n  === {season} {season_type}: {len(all_players)} players ===")
 
-    all_shot_charts = season_data["regular_season"].get("shot_charts", {})
+    all_shot_charts = block.get("shot_charts", {})
 
     fetched = 0
     errors = 0
@@ -84,7 +85,7 @@ def fetch_season(data, season):
             continue
 
         try:
-            charts = fetch_shot_chart(p["player_id"], p["name"], season)
+            charts = fetch_shot_chart(p["player_id"], p["name"], season, season_type=season_type)
             all_shot_charts[pid] = charts
             fetched += 1
             print(f"  [{i+1}/{len(all_players)}] {p['name']}: {len(charts)} shots")
@@ -94,14 +95,19 @@ def fetch_season(data, season):
             errors += 1
 
         if fetched > 0 and fetched % 20 == 0:
-            season_data["regular_season"]["shot_charts"] = all_shot_charts
+            season_data[block_key]["shot_charts"] = all_shot_charts
             write_json_atomic(DATA_FILE, data)
             print(f"    [saved progress: {fetched} fetched]")
 
-    season_data["regular_season"]["shot_charts"] = all_shot_charts
+    season_data[block_key]["shot_charts"] = all_shot_charts
     write_json_atomic(DATA_FILE, data)
 
-    print(f"  Done {season}: {fetched} new, {errors} errors.")
+    print(f"  Done {season} {season_type}: {fetched} new, {errors} errors.")
+
+
+def fetch_season(data, season):
+    fetch_block_shots(data, season, "regular_season", "Regular Season")
+    fetch_block_shots(data, season, "playoffs", "Playoffs")
 
 
 def main():

@@ -141,7 +141,9 @@ export default function NewsHub({ block, news }: Props) {
                     </a>
                   ))
                 ) : (
-                  <div className="py-6 text-sm text-slate-500">No headlines available yet.</div>
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                    No headlines are loaded right now. Refresh the news feed or check back after the next update cycle.
+                  </div>
                 )}
               </div>
             </div>

@@ -88,7 +88,9 @@ export default function ShotChart({ shots, teamColor }: Props) {
   if (shots.length === 0) {
     return (
       <div className="rounded-2xl p-8 text-center" style={{ background: '#f5f0e8', border: '1px solid #e8dcc8' }}>
-        <p className="text-slate-400 text-sm italic">No shot chart data available</p>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Shot Chart</div>
+        <p className="mt-3 text-sm font-medium text-slate-600">No shot locations are available for this player in the current season view.</p>
+        <p className="mt-2 text-xs text-slate-500">Try a different player or switch season context if you expect charted attempts.</p>
       </div>
     )
   }

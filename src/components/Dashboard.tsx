@@ -671,7 +671,7 @@ function RankingsView({
     return {
       impact: {
         label: 'Player Impact Index',
-        title: 'Most Impact',
+        title: 'Selected Player',
         averageLabel: `Min ${impactMinGames} GP`,
         valueLabel: 'Impact',
         description: `Overall two-way impact using the dashboard’s season-relative index, limited to players with at least ${impactMinGames} games and ${rankingMinMinutesPerGame}+ MPG.`,
@@ -926,7 +926,9 @@ function RankingsView({
               )}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-slate-400">No ranking data available for this season.</p>
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+              No ranking pool is available for this season view yet. Try switching season type or choosing another season.
+            </div>
           )}
         </div>
 
@@ -1538,7 +1540,10 @@ function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: League
           <PlayerComparison playerA={playerA} playerB={playerB} nameA={playerA.name} nameB={playerB.name} teamColorA={colorA} teamColorB={colorB} />
         </div>
       ) : (
-        <p className="text-center py-16 text-slate-300 text-sm italic">Pick two players to compare</p>
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
+          <div className="text-sm font-medium text-slate-600">Pick two players to compare.</div>
+          <div className="mt-2 text-xs text-slate-500">Choose Player A and Player B above to load the side-by-side view.</div>
+        </div>
       )}
     </div>
   )

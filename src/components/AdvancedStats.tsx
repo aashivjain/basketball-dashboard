@@ -191,13 +191,17 @@ export default function AdvancedStats({ player, games, teamColor, leagueAvg }: P
           )}
 
           {games.length === 0 && (
-            <p className="text-sm text-slate-400 italic">No game log data available for splits</p>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+              No split view yet. This player does not have enough game-log detail in the current season view.
+            </div>
           )}
         </div>
       )}
 
       {tab === 'splits' && !splits && (
-        <p className="text-sm text-slate-400 italic py-4">No game log data available for this player</p>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+          No split trends are available for this player yet. Add more games or switch season context to unlock home/away and opponent views.
+        </div>
       )}
 
       {/* === TENDENCIES TAB === */}

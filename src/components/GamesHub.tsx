@@ -194,7 +194,7 @@ export default function GamesHub({ block, season, seasonType }: Props) {
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 font-semibold">Games</div>
         <h2 className="mt-2 text-3xl tracking-tight text-slate-950" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Higher or Lower</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-          There is not enough player data loaded for this season view yet. Switch season context or load more player stats to unlock the game.
+          This game needs at least two players with real season stats in the current view. Switch season context and try again.
         </p>
       </section>
     )

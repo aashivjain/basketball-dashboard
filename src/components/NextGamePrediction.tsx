@@ -126,7 +126,15 @@ export default function NextGamePrediction({ block }: Props) {
   }, [focusColors.primary, focusColors.secondary, lineupLab, matchupRows, rosterSignals, selectedTeam])
 
   if (!block || !focusTeam || teamProfiles.length < 2) {
-    return null
+    return (
+      <section className="app-panel p-6">
+        <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">Teams</p>
+        <h2 className="text-[28px] text-slate-900 mt-1">Team dashboard</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+          Team tools are not available for this season view yet. Load a season with at least two active team profiles to unlock matchup and rotation views.
+        </p>
+      </section>
+    )
   }
 
   return (
