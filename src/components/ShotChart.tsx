@@ -253,6 +253,20 @@ export default function ShotChart({ shots, teamColor }: Props) {
             </div>
 
             <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setSelectedZone(null)
+                setResolvedRange(0, Math.max(0, orderedDates.length - 1), 'end')
+              }}
+              className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
+              style={{
+                borderColor: '#e2e8f0',
+                background: '#fff',
+                color: '#64748b',
+              }}
+            >
+              Clear
+            </button>
             {buildPresets(orderedDates.length).map(preset => (
               <button
                 key={preset.label}
