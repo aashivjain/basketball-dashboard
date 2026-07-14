@@ -1531,6 +1531,20 @@ function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: League
         </div>
       </div>
 
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={() => {
+            setIdA(idB)
+            setIdB(idA)
+          }}
+          disabled={idA === null && idB === null}
+          className="ui-control rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Swap Players
+        </button>
+      </div>
+
       {playerA && playerB && colorA && colorB ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
