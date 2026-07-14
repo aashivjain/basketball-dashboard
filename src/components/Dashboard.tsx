@@ -935,7 +935,7 @@ function RankingsView({
         <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3 px-2 pb-3">
             <div>
-              <h3 className="text-lg font-medium text-slate-900">Top 50</h3>
+              <h3 className="text-lg font-medium text-slate-900">Leaderboard</h3>
               <p className="text-xs text-slate-400">Sorted by {activeMetric.label}</p>
             </div>
             <div className="text-xs text-slate-400">{activeMetric.valueLabel} leaderboard</div>
