@@ -176,13 +176,13 @@ export default function Dashboard() {
           </div>
 
           {(section === 'players' || section === 'teams' || section === 'games' || section === 'league') && (
-            <div className="mt-3 flex items-center gap-2.5 flex-wrap rounded-[20px] border border-slate-200/80 bg-white/88 px-3 py-2 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.35)]">
+            <div className="ui-context-bar mt-3 flex items-center gap-2.5 flex-wrap px-3 py-2">
               <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Context</div>
               <select
                 value={season}
                 onChange={e => setSeason(e.target.value)}
                 aria-label="Season"
-                className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700"
+                className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700 shadow-sm"
                 style={{ minWidth: '110px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
               >
                 {availableSeasons.map(yr => (
@@ -238,7 +238,7 @@ export default function Dashboard() {
                     value={selectedPlayerId ?? ''}
                     onChange={e => { setSelectedPlayerId(Number(e.target.value)); setCompareId(null); setShowCompare(false) }}
                     aria-label="Selected player"
-                    className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700"
+                    className="ui-control rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm cursor-pointer appearance-none text-slate-700 shadow-sm"
                     style={{ minWidth: '220px', maxWidth: '320px', paddingRight: '2rem', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                   >
                     <option value="" disabled>Choose player</option>
@@ -253,19 +253,19 @@ export default function Dashboard() {
                 )}
 
                 {isPlayersCompare && (
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                  <div className="ui-context-note">
                     Pick both players below to compare this season.
                   </div>
                 )}
 
                 {isPlayersRankings && (
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                  <div className="ui-context-note">
                     League-wide leaderboard for the selected season.
                   </div>
                 )}
 
                 {isPlayersBuilder && (
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                  <div className="ui-context-note">
                     Build a custom WNBA player profile and estimate their impact score.
                   </div>
                 )}
@@ -273,7 +273,7 @@ export default function Dashboard() {
               )}
 
               {section === 'games' && (
-                <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500">
+                <div className="ui-context-note">
                   Keep your streak alive in a higher-or-lower WNBA stats challenge.
                 </div>
               )}
@@ -572,7 +572,7 @@ function QuickSearch({
                       type="button"
                       onClick={() => handleTeamSelect(teamOption.team)}
                       onMouseEnter={() => setActiveIndex(itemIndex)}
-                      className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2.5 text-left transition hover:bg-slate-50"
+                      className="ui-click-row flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left"
                       style={{ background: safeActiveIndex === itemIndex ? '#f8fafc' : 'transparent' }}
                     >
                       <span className="min-w-0">
@@ -601,7 +601,7 @@ function QuickSearch({
                       type="button"
                       onClick={() => handlePlayerSelect(playerOption.player_id)}
                       onMouseEnter={() => setActiveIndex(itemIndex)}
-                      className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2.5 text-left transition hover:bg-slate-50"
+                      className="ui-click-row flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left"
                       style={{ background: safeActiveIndex === itemIndex ? '#f8fafc' : 'transparent' }}
                     >
                       <span className="min-w-0">
@@ -822,7 +822,7 @@ function RankingsView({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
+      <div className="ui-section-header">
         <div>
           <h2 className="text-2xl font-light tracking-tight" style={{ fontFamily: "'Georgia', serif" }}>Player Rankings</h2>
           <p className="text-sm text-slate-400 mt-1">{season} season &middot; League-wide leaderboard</p>
@@ -833,7 +833,7 @@ function RankingsView({
             <button
               key={key}
               onClick={() => setMetric(key as typeof metric)}
-              className="rounded-full px-3 py-1.5 text-sm font-medium transition-all"
+              className="ui-nav-button rounded-full px-3 py-1.5 text-sm font-medium transition-all"
               style={{ background: metric === key ? '#1e293b' : 'transparent', color: metric === key ? '#fff' : '#64748b' }}
             >
               {config.label}
@@ -880,7 +880,7 @@ function RankingsView({
               <button
                 type="button"
                 onClick={() => openPlayerProfile(featuredPlayer.player.player_id)}
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:text-slate-900"
+                className="ui-soft-button inline-flex items-center rounded-full px-4 py-2 text-sm font-medium"
               >
                 View full player profile
               </button>
@@ -949,7 +949,8 @@ function RankingsView({
                   type="button"
                   key={entry.player.player_id}
                   onClick={() => openPlayerProfile(entry.player.player_id)}
-                  className="group grid w-full grid-cols-[38px_minmax(0,1.35fr)_minmax(0,0.8fr)_78px] items-center gap-3 rounded-2xl border border-slate-100 px-3 py-3 text-left transition-all hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-[0_10px_24px_-18px_rgba(15,23,42,0.45)]"
+                  data-selected={entry.player.player_id === selectedPlayerId}
+                  className="ui-click-row group grid w-full grid-cols-[38px_minmax(0,1.35fr)_minmax(0,0.8fr)_78px] items-center gap-3 rounded-2xl px-3 py-3 text-left"
                   style={{ background: entry.player.player_id === selectedPlayerId || index < 3 ? tc.bg : 'white' }}
                 >
                   <div className="text-lg font-semibold text-slate-400">{index + 1}</div>

@@ -65,9 +65,9 @@ export default function LeagueHub({ block, season }: Props) {
   return (
     <section className="space-y-6">
       <div className="app-panel p-6">
-        <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="ui-section-header">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">League</p>
+            <p className="ui-section-eyebrow">League</p>
             <h2
               className="mt-1 text-[32px] text-slate-950"
               style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}
@@ -105,11 +105,11 @@ export default function LeagueHub({ block, season }: Props) {
                     })
                   }
                 }}
-                className="grid w-full grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 px-4 py-3 items-center text-left text-sm min-w-min hover:bg-slate-50 transition-colors cursor-pointer"
-                title={`Open ${entry.displayTeam} team dashboard`}
+                className="ui-click-row group grid w-full grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 px-4 py-3 items-center text-left text-sm min-w-min"
+                title={`Open ${entry.displayTeam} team outlook`}
               >
                 <div className="font-semibold text-slate-400 text-center">{entry.rank}</div>
-                <div className="font-semibold text-slate-950 min-w-0 underline-offset-4 hover:underline">{entry.displayTeam}</div>
+                <div className="font-semibold text-slate-950 min-w-0 underline-offset-4 group-hover:underline">{entry.displayTeam}</div>
                 <div className="text-center text-slate-700">{entry.wins}</div>
                 <div className="text-center text-slate-700">{entry.losses}</div>
                 <div className="text-center text-slate-700 font-medium">{entry.pct}</div>

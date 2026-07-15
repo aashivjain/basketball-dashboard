@@ -128,7 +128,7 @@ export default function NextGamePrediction({ block }: Props) {
   if (!block || !focusTeam || teamProfiles.length < 2) {
     return (
       <section className="app-panel p-6">
-        <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">Teams</p>
+        <p className="ui-section-eyebrow">Teams</p>
         <h2 className="text-[28px] text-slate-900 mt-1">Team Outlook</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
           Team tools are not available for this season view yet. Load a season with at least two active team profiles to unlock matchup and rotation views.
@@ -139,9 +139,9 @@ export default function NextGamePrediction({ block }: Props) {
 
   return (
     <section className="app-panel p-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="ui-section-header">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 font-semibold">Team Predictions</p>
+          <p className="ui-section-eyebrow">Team Predictions</p>
         <h2 className="text-[28px] text-slate-900 mt-1">Team Outlook</h2>
           <p className="text-sm text-slate-500 mt-2 max-w-3xl">Fast team context up top, deeper lineup and matchup tools below.</p>
           {predictionState.issues.length > 0 && (
@@ -164,7 +164,7 @@ export default function NextGamePrediction({ block }: Props) {
               nextParams.set('team', event.target.value)
               setSearchParams(nextParams, { replace: true })
             }}
-            className="ui-control rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-base text-slate-700"
+            className="ui-control rounded-full border border-slate-200 bg-white px-4 py-2.5 text-base text-slate-700 shadow-sm"
           >
             {teamProfiles.map(team => (
               <option key={team.team} value={team.team}>
@@ -254,7 +254,7 @@ export default function NextGamePrediction({ block }: Props) {
                 <button
                   key={option}
                   onClick={() => setVenue(option)}
-                  className="rounded-full px-4 py-2 text-sm font-semibold"
+                  className="ui-nav-button rounded-full px-4 py-2 text-sm font-semibold"
                   style={{
                     background: venue === option ? focusColors.primary : 'transparent',
                     color: venue === option ? '#fff' : '#475569',
@@ -365,7 +365,7 @@ function CollapsibleSection({
     <div className="border-b border-slate-200 last:border-b-0">
       <button
         onClick={onToggle}
-        className="ui-nav-button flex w-full items-center justify-between gap-4 bg-white px-4 py-4 text-left md:px-5"
+        className="ui-click-row flex w-full items-center justify-between gap-4 bg-white px-4 py-4 text-left md:px-5"
       >
         <div>
           <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-slate-700">{title}</div>
@@ -412,7 +412,7 @@ function LineupImpactLab({
             <button
               key={player.player_id}
               onClick={() => onTogglePlayer(player.player_id)}
-              className="rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all"
+              className="ui-nav-button rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all"
               style={{
                 borderColor: active ? accent : '#e2e8f0',
                 background: active ? `${accent}14` : '#fff',
