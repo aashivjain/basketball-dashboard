@@ -163,7 +163,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
   const isSingleDayRange = safeStart === safeEnd
 
   return (
-    <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${teamColor.primary}15` }}>
+    <div className="flex min-h-[52rem] flex-col rounded-2xl bg-white p-5" style={{ border: `1px solid ${teamColor.primary}15` }}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-slate-600">Shot Chart</h3>
         <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export default function ShotChart({ shots, teamColor }: Props) {
       </div>
 
       {orderedDates.length > 1 && (
-        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+        <div className="mb-4 min-h-[11.5rem] rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Date Range</div>
@@ -237,8 +237,8 @@ export default function ShotChart({ shots, teamColor }: Props) {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+          <div className="mt-3 min-h-[4.5rem]">
+            <div className="flex min-h-[2rem] flex-wrap gap-2 text-[11px] text-slate-500">
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold">
                 Start: {formatShortDate(startDate)}
               </span>
@@ -252,37 +252,37 @@ export default function ShotChart({ shots, teamColor }: Props) {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => {
-                setSelectedZone(null)
-                setResolvedRange(0, Math.max(0, orderedDates.length - 1), 'end')
-              }}
-              className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
-              style={{
-                borderColor: '#e2e8f0',
-                background: '#fff',
-                color: '#64748b',
-              }}
-            >
-              Clear
-            </button>
-            {buildPresets(orderedDates.length).map(preset => (
+            <div className="mt-2 flex min-h-[2rem] flex-wrap gap-2">
               <button
-                key={preset.label}
                 onClick={() => {
-                  setResolvedRange(preset.start, preset.end, 'end')
+                  setSelectedZone(null)
+                  setResolvedRange(0, Math.max(0, orderedDates.length - 1), 'end')
                 }}
                 className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
                 style={{
-                  borderColor: safeStart === preset.start && safeEnd === preset.end ? teamColor.primary : '#e2e8f0',
-                  background: safeStart === preset.start && safeEnd === preset.end ? `${teamColor.primary}14` : '#fff',
-                  color: safeStart === preset.start && safeEnd === preset.end ? teamColor.primary : '#64748b',
+                  borderColor: '#e2e8f0',
+                  background: '#fff',
+                  color: '#64748b',
                 }}
               >
-                {preset.label}
+                Clear
               </button>
-            ))}
+              {buildPresets(orderedDates.length).map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => {
+                    setResolvedRange(preset.start, preset.end, 'end')
+                  }}
+                  className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
+                  style={{
+                    borderColor: safeStart === preset.start && safeEnd === preset.end ? teamColor.primary : '#e2e8f0',
+                    background: safeStart === preset.start && safeEnd === preset.end ? `${teamColor.primary}14` : '#fff',
+                    color: safeStart === preset.start && safeEnd === preset.end ? teamColor.primary : '#64748b',
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -311,8 +311,8 @@ export default function ShotChart({ shots, teamColor }: Props) {
         </div>
       )}
 
-      <div className="relative">
-        <svg viewBox="0 20 500 435" className="w-full overflow-hidden rounded-xl">
+      <div className="relative flex-1">
+        <svg viewBox="0 20 500 435" className="h-auto min-h-[27rem] w-full overflow-hidden rounded-xl">
           <defs>
             <clipPath id="court-clip"><rect x="0" y="20" width="500" height="435" /></clipPath>
             <pattern id="wood-grain" patternUnits="userSpaceOnUse" width="200" height="200">
