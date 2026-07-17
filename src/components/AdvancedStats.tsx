@@ -397,6 +397,7 @@ export default function AdvancedStats({ player, games, teamColor, leagueAvg }: P
 function MetricCard({ label, value, desc, color, benchmark, actual, invertColor }: {
   label: string; value: string; desc: string; color: string; benchmark?: number; actual?: number; invertColor?: boolean
 }) {
+  const tone = getAdvancedMetricTone(label, color)
   // For inverted metrics (like TOV rate), below benchmark is good
   const isGood = benchmark !== undefined && actual !== undefined
     ? (invertColor ? actual < benchmark : actual > benchmark)
@@ -429,11 +430,11 @@ function MetricCard({ label, value, desc, color, benchmark, actual, invertColor 
   }
   
   return (
-    <div className="group relative rounded-xl bg-slate-50 p-3 hover:bg-slate-100 transition-colors">
-      <div className="text-xl font-bold tracking-tight" style={{ color: invertColor && isGood === false ? '#dc2626' : color }}>
+    <div className="group relative rounded-xl border p-3 shadow-sm transition-colors hover:brightness-[0.99]" style={{ background: tone.bg, borderColor: tone.border }}>
+      <div className="text-xl font-bold tracking-tight" style={{ color: invertColor && isGood === false ? '#dc2626' : tone.value }}>
         {value}
       </div>
-      <div className="text-[11px] font-medium text-slate-600 mt-0.5">{label}</div>
+      <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: tone.label }}>{label}</div>
       
       {/* Diverging comparison bar: middle = average */}
       {benchmark !== undefined && actual !== undefined && (
@@ -570,4 +571,20 @@ function StatPill({ label, value, color }: { label: string; value: string; color
       <span className="font-semibold" style={{ color }}>{value}</span>
     </span>
   )
+}
+
+function getAdvancedMetricTone(label: string, fallbackColor: string) {
+  if (label.includes('Shooting') || label.includes('FG')) {
+    return { bg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '#fdba74', value: '#c2410c', label: '#9a3412' }
+  }
+  if (label.includes('AST') || label.includes('Usage')) {
+    return { bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#bfdbfe', value: '#1d4ed8', label: '#1e40af' }
+  }
+  if (label.includes('FT') || label.includes('TOV')) {
+    return { bg: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)', border: '#fcd34d', value: '#a16207', label: '#854d0e' }
+  }
+  if (label.includes('Game Score')) {
+    return { bg: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)', border: '#c4b5fd', value: '#6d28d9', label: '#5b21b6' }
+  }
+  return { bg: `${fallbackColor}10`, border: `${fallbackColor}22`, value: fallbackColor, label: fallbackColor }
 }

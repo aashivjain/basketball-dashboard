@@ -35,6 +35,23 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
+function getStatTone(label: string) {
+  switch (label) {
+    case 'PTS':
+      return { bg: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)', border: '#fecdd3', value: '#be123c', label: '#9f1239' }
+    case 'AST':
+      return { bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#bfdbfe', value: '#1d4ed8', label: '#1e40af' }
+    case 'REB':
+      return { bg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', border: '#a7f3d0', value: '#047857', label: '#065f46' }
+    case 'STL':
+      return { bg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '#fdba74', value: '#c2410c', label: '#9a3412' }
+    case 'BLK':
+      return { bg: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)', border: '#c4b5fd', value: '#6d28d9', label: '#5b21b6' }
+    default:
+      return { bg: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', border: '#e2e8f0', value: '#0f172a', label: '#64748b' }
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { data, issues: dataIssues } = loadDashboardData()
@@ -1411,10 +1428,11 @@ function PercentField({
 }
 
 function MetricPreview({ label, value }: { label: string; value: string }) {
+  const tone = getStatTone(label)
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-lg font-semibold text-slate-900">{value}</div>
-      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
+    <div className="rounded-2xl border px-4 py-3 shadow-sm" style={{ borderColor: tone.border, background: tone.bg }}>
+      <div className="text-lg font-semibold" style={{ color: tone.value }}>{value}</div>
+      <div className="mt-1 text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: tone.label }}>{label}</div>
     </div>
   )
 }
@@ -1425,10 +1443,11 @@ function formatNumericValue(value: number, step: number) {
 }
 
 function MetricChip({ label, value }: { label: string; value: string }) {
+  const tone = getStatTone(label)
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
-      <div className="text-lg font-semibold text-slate-900">{value}</div>
-      <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{label}</div>
+    <div className="rounded-2xl border px-3 py-3 shadow-sm" style={{ borderColor: tone.border, background: tone.bg }}>
+      <div className="text-lg font-semibold" style={{ color: tone.value }}>{value}</div>
+      <div className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: tone.label }}>{label}</div>
     </div>
   )
 }

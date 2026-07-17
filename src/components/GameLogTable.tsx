@@ -16,9 +16,9 @@ export default function GameLogTable({ games, teamColor }: Props) {
             <th className="py-2 pr-3 font-medium">Opp</th>
             <th className="py-2 pr-3 font-medium">W/L</th>
             <th className="py-2 pr-3 font-medium text-right">MIN</th>
-            <th className="py-2 pr-3 font-medium text-right">PTS</th>
-            <th className="py-2 pr-3 font-medium text-right">REB</th>
-            <th className="py-2 pr-3 font-medium text-right">AST</th>
+            <th className="py-2 pr-3 text-right"><span className="rounded-full bg-rose-50 px-2 py-1 font-semibold text-rose-700">PTS</span></th>
+            <th className="py-2 pr-3 text-right"><span className="rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">REB</span></th>
+            <th className="py-2 pr-3 text-right"><span className="rounded-full bg-blue-50 px-2 py-1 font-semibold text-blue-700">AST</span></th>
             <th className="py-2 pr-3 font-medium text-right">FG</th>
           </tr>
         </thead>
@@ -31,9 +31,9 @@ export default function GameLogTable({ games, teamColor }: Props) {
                 <span className="text-xs font-medium" style={{ color: g.wl === 'W' ? teamColor.primary : '#94a3b8' }}>{g.wl}</span>
               </td>
               <td className="py-1.5 pr-3 text-right text-slate-500">{g.min}</td>
-              <td className="py-1.5 pr-3 text-right font-medium text-slate-700">{g.pts}</td>
-              <td className="py-1.5 pr-3 text-right text-slate-600">{g.reb}</td>
-              <td className="py-1.5 pr-3 text-right text-slate-600">{g.ast}</td>
+              <td className="py-1.5 pr-3 text-right font-semibold text-rose-700">{g.pts}</td>
+              <td className="py-1.5 pr-3 text-right font-medium text-emerald-700">{g.reb}</td>
+              <td className="py-1.5 pr-3 text-right font-medium text-blue-700">{g.ast}</td>
               <td className="py-1.5 pr-3 text-right text-slate-500">{g.fgm}-{g.fga}</td>
             </tr>
           ))}

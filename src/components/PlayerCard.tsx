@@ -77,9 +77,9 @@ export default function PlayerCard({ player, teamColor, accentColor, impactIndex
         )}
 
         {/* main stat - ppg */}
-        <div className="text-center rounded-[22px] bg-slate-50/80 px-4 py-5">
+        <div className="text-center rounded-[22px] px-4 py-5" style={{ background: `linear-gradient(135deg, ${accent}14 0%, ${teamColor.bg} 100%)` }}>
           <div className="text-5xl font-light tracking-tight" style={{ color: accent, fontFamily: "'DM Serif Display', Georgia, serif" }}>{s.pts.toFixed(1)}</div>
-          <div className="text-xs uppercase tracking-widest text-slate-400 mt-1.5 font-medium">points per game</div>
+          <div className="mt-1.5 text-xs font-medium uppercase tracking-widest" style={{ color: `${accent}cc` }}>points per game</div>
         </div>
 
         <div className="h-px w-full" style={{ background: `${accent}15` }}></div>
@@ -104,12 +104,15 @@ export default function PlayerCard({ player, teamColor, accentColor, impactIndex
 }
 
 function StatItem({ label, value, color }: { label: string; value: string; color: string }) {
+  const tone = getPlayerStatTone(label, color)
   return (
-    <div className="flex items-center gap-3">
-      <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold" style={{ background: `${color}12`, color }}>
+    <div className="rounded-2xl border px-3 py-2.5" style={{ borderColor: tone.border, background: tone.bg }}>
+      <div className="flex items-center gap-3">
+      <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold" style={{ background: tone.badge, color: tone.value }}>
         {label}
       </div>
-      <span className="text-xl font-medium text-slate-700" style={{ fontFamily: "'Inter', sans-serif" }}>{value}</span>
+      <span className="text-xl font-medium" style={{ color: tone.value, fontFamily: "'Inter', sans-serif" }}>{value}</span>
+      </div>
     </div>
   )
 }
@@ -121,4 +124,19 @@ function MiniStat({ label, value, color }: { label: string; value: string; color
       <div className="text-xs text-slate-400 mt-1 font-medium">{label}</div>
     </div>
   )
+}
+
+function getPlayerStatTone(label: string, fallbackColor: string) {
+  switch (label) {
+    case 'REB':
+      return { bg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', border: '#a7f3d0', badge: '#a7f3d0', value: '#047857' }
+    case 'AST':
+      return { bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#bfdbfe', badge: '#bfdbfe', value: '#1d4ed8' }
+    case 'STL':
+      return { bg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '#fdba74', badge: '#fed7aa', value: '#c2410c' }
+    case 'BLK':
+      return { bg: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)', border: '#c4b5fd', badge: '#ddd6fe', value: '#6d28d9' }
+    default:
+      return { bg: `${fallbackColor}10`, border: `${fallbackColor}22`, badge: `${fallbackColor}16`, value: fallbackColor }
+  }
 }
