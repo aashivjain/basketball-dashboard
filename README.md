@@ -1,6 +1,6 @@
 # WNBA Analytics Dashboard
 
-Full-league analytics dashboard with 12,562 WNBA game records. Real data. Real features.
+Full-league analytics dashboard with thousands of WNBA game records. Real data. Real features.
 
 ## What You're Looking For
 
