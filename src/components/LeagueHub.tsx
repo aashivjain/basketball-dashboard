@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { SeasonBlock } from '../types'
 import { buildTeamProfiles, buildTeamRankings } from '../utils/teamPrediction'
+import { getTeamColors } from '../utils/teamColors'
 import { getDisplayTeamCode, normalizeTeamCode } from '../utils/teamCodes'
 
 interface Props {
@@ -108,8 +109,15 @@ export default function LeagueHub({ block, season }: Props) {
                 className="ui-click-row group grid w-full grid-cols-[36px_1fr_48px_48px_56px_56px_64px_64px] gap-3 px-4 py-3 items-center text-left text-sm min-w-min"
                 title={`Open ${entry.displayTeam} team outlook`}
               >
-                <div className="font-semibold text-slate-400 text-center">{entry.rank}</div>
-                <div className="font-semibold text-slate-950 min-w-0 underline-offset-4 group-hover:underline">{entry.displayTeam}</div>
+                <div
+                  className="font-semibold text-center"
+                  style={{ color: getTeamColors(entry.team).primary }}
+                >
+                  {entry.rank}
+                </div>
+                <div className="min-w-0 font-semibold underline-offset-4 group-hover:underline" style={{ color: getTeamColors(entry.team).primary }}>
+                  {entry.displayTeam}
+                </div>
                 <div className="text-center text-slate-700">{entry.wins}</div>
                 <div className="text-center text-slate-700">{entry.losses}</div>
                 <div className="text-center text-slate-700 font-medium">{entry.pct}</div>
