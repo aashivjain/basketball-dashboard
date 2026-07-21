@@ -37,12 +37,18 @@ function clamp(value: number, min: number, max: number) {
 
 function getStatTone(label: string) {
   switch (label) {
+    case 'Impact':
+      return { bg: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', border: '#cbd5e1', value: '#0f172a', label: '#475569' }
     case 'PTS':
       return { bg: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)', border: '#fecdd3', value: '#be123c', label: '#9f1239' }
     case 'AST':
       return { bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '#bfdbfe', value: '#1d4ed8', label: '#1e40af' }
     case 'REB':
       return { bg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', border: '#a7f3d0', value: '#047857', label: '#065f46' }
+    case 'TS%':
+      return { bg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '#fdba74', value: '#c2410c', label: '#9a3412' }
+    case '3PT%':
+      return { bg: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)', border: '#fde68a', value: '#a16207', label: '#854d0e' }
     case 'STL':
       return { bg: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '#fdba74', value: '#c2410c', label: '#9a3412' }
     case 'BLK':
@@ -846,16 +852,26 @@ function RankingsView({
         </div>
 
         <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-sm flex-wrap">
-          {Object.entries(metricConfig).map(([key, config]) => (
-            <button
-              key={key}
-              onClick={() => setMetric(key as typeof metric)}
-              className="ui-nav-button rounded-full px-3 py-1.5 text-sm font-medium transition-all"
-              style={{ background: metric === key ? '#1e293b' : 'transparent', color: metric === key ? '#fff' : '#64748b' }}
-            >
-              {config.label}
-            </button>
-          ))}
+          {Object.entries(metricConfig).map(([key, config]) => {
+            const tone = getStatTone(config.valueLabel)
+            const active = metric === key
+
+            return (
+              <button
+                key={key}
+                onClick={() => setMetric(key as typeof metric)}
+                className="ui-nav-button rounded-full border px-3 py-1.5 text-sm font-medium transition-all"
+                style={{
+                  background: active ? tone.bg : 'transparent',
+                  borderColor: active ? tone.border : 'transparent',
+                  color: active ? tone.value : tone.label,
+                  boxShadow: active ? '0 10px 22px -18px rgba(15, 23, 42, 0.45)' : 'none',
+                }}
+              >
+                {config.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
