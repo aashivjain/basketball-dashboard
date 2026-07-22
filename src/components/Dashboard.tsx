@@ -1567,7 +1567,7 @@ function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: League
         </div>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -1578,6 +1578,17 @@ function CompareView({ allPlayers, playersByTeam, season }: { allPlayers: League
           className="ui-control rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Swap Players
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIdA(null)
+            setIdB(null)
+          }}
+          disabled={idA === null && idB === null}
+          className="ui-control rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Clear Selection
         </button>
       </div>
 
