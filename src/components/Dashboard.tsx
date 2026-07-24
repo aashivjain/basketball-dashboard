@@ -986,7 +986,16 @@ function RankingsView({
                   className="ui-click-row group grid w-full grid-cols-[38px_minmax(0,1.35fr)_minmax(0,0.8fr)_78px] items-center gap-3 rounded-2xl px-3 py-3 text-left"
                   style={{ background: entry.player.player_id === selectedPlayerId || index < 3 ? tc.bg : 'white' }}
                 >
-                  <div className="text-lg font-semibold text-slate-400">{index + 1}</div>
+                  <div
+                    className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border px-2 text-[12px] font-semibold"
+                    style={{
+                      borderColor: `${tc.primary}28`,
+                      background: entry.player.player_id === selectedPlayerId || index < 3 ? '#fff' : tc.bg,
+                      color: tc.primary,
+                    }}
+                  >
+                    #{index + 1}
+                  </div>
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-slate-900 transition-all group-hover:text-slate-700 group-hover:underline group-hover:decoration-slate-400 group-hover:underline-offset-4">{entry.player.name}</div>
                     <div className="truncate text-xs text-slate-400">{entry.player.team} &middot; {entry.player.gp} GP &middot; {entry.player.min.toFixed(1)} MPG</div>
